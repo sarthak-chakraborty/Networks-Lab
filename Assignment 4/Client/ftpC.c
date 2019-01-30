@@ -47,30 +47,29 @@ void main(){
 		printf("Successful\n");
 
 		if(fork()==0){
-			printf("%s\n", mssg);
 			i=5;
 			while(mssg[i]==' ') i++;
 			while(mssg[i] != ' ' && mssg[i] != '\0'){
 				Y = 10*Y + (int)(mssg[i] - '0');
 				i++;
 			}
-			printf("Y: %ld\n",Y);
+
+			if((datasockfd=socket(AF_INET, SOCK_STREAM, 0)) < 0){
+				perror("Socket creation failed\n");
+				exit(0);
+			}
+			
+			cli_addr.sin_family = AF_INET;
+			cli_addr.sin_addr.s_addr = INADDR_ANY;
+			cli_addr.sin_port = htons(Y);
+			
+			if(bind(datasockfd,(const struct sockaddr *)&cli_addr, sizeof(cli_addr)) < 0){
+				perror("Binding error\n");
+				exit(0);
+			}
+			listen(datasockfd, 5);
+			printf("\nClient Server Running...\n");
 		}
-		// 	if((datasockfd=socket(AF_INET, SOCK_STREAM, 0)) < 0){
-		// 		perror("Socket creation failed\n");
-		// 		exit(0);
-		// 	}
-			
-		// 	cli_addr.sin_family = AF_INET;
-		// 	cli_addr.sin_addr.s_addr = INADDR_ANY;
-		// 	cli_addr.sin_port = htons(Y);
-			
-		// 	if(bind(datasockfd,(const struct sockaddr *)&cli_addr, sizeof(cli_addr)) < 0){
-		// 		perror("Binding error\n");
-		// 		exit(0);
-		// 	}
-		// 	listen(datasockfd, 5);
-		// 	printf("\nClient Server Running...\n");
 
 		// 	while(1){
 		// 		servlen = sizeof(dataserv_addr);
