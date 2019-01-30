@@ -14,3 +14,7 @@ Implementation of a TCP socket to transfer a file from server to client and coun
 Implementation of a TCP and UDP socket.  
 TCP socket is responsible for transfer of a file word by word from server to client.  
 UDP socket is responsible for the response of a DNS client asking for the IP address given a domain name.
+
+
+### ASSIGNMENT 4
+Implementation of active mode FTP, where a server and client creats a TCP server and TCP client each which acts as a control and data socket.
