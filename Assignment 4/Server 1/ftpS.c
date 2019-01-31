@@ -17,6 +17,7 @@ void main(){
 	struct sockaddr_in ctrlcli_addr, datacli_addr, serv_addr;
 	int clilen;
 	char mssg[MAX];
+	char buff[MAX];
 	int i, flag, OK;
 	long int Y;
 	int code_OK = 200;
@@ -95,26 +96,32 @@ void main(){
 	}
 
 	if(OK){
-		if((datasockfd=socket(AF_INET, SOCK_STREAM, 0)) < 0){
-			perror("Socket creation failed\n");
-			exit(0);
-		}
-		
-		datacli_addr.sin_family = AF_INET;
-		datacli_addr.sin_addr.s_addr = INADDR_ANY;
-		datacli_addr.sin_port = htons(Y);
-
-		usleep(2000);
-		if(connect(datasockfd, (struct sockaddr *)&datacli_addr, sizeof(datacli_addr)) < 0){
-			perror("Unable to connect to server\n");
-			exit(0);
-		}
-
-		printf("Connected\n");
-
 		while(1){
-			recv(datasockfd, mssg, 80, 0);
-			printf("MSSG Received: %s\n", mssg);
+			recv(newctrlsockfd, mssg, 80, 0);
+			printf("MSSG Received: %s\n",mssg);
+
+			
 		}
+		// if((datasockfd=socket(AF_INET, SOCK_STREAM, 0)) < 0){
+		// 	perror("Socket creation failed\n");
+		// 	exit(0);
+		// }
+		
+		// datacli_addr.sin_family = AF_INET;
+		// datacli_addr.sin_addr.s_addr = INADDR_ANY;
+		// datacli_addr.sin_port = htons(Y);
+
+		// usleep(2000);
+		// if(connect(datasockfd, (struct sockaddr *)&datacli_addr, sizeof(datacli_addr)) < 0){
+		// 	perror("Unable to connect to server\n");
+		// 	exit(0);
+		// }
+
+		// printf("Connected\n");
+
+		// while(1){
+		// 	recv(datasockfd, buff, 80, 0);
+		// 	printf("MSSG Received: %s\n", buff);
+		// }
 	}
 }
