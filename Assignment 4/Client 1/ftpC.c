@@ -17,6 +17,7 @@ void main(){
 	struct sockaddr_in cli_addr, ctrlserv_addr, dataserv_addr;
 	int servlen;
 	char mssg[MAX];
+	char buff[MAX];
 	int code;
 	int i, flag;
 	long int Y;
@@ -39,8 +40,8 @@ void main(){
 		exit(0);
 	}
 	
-	printf("\n> ");
-	gets(mssg);
+	printf("> ");
+	scanf("%[^\n]s",mssg);
 	send(ctrlsockfd, mssg, strlen(mssg)+1, 0);
 
 	recv(ctrlsockfd, &code, 3, 0);
@@ -75,14 +76,17 @@ void main(){
 			for(i=0; i<MAX; i++) mssg[i]='\0';
 		
 			while(1){
-				servlen = sizeof(dataserv_addr);
-				newdatasockfd = accept(datasockfd, (struct sockaddr *)&dataserv_addr, &servlen);
-
+				getchar();
 				printf("> ");
-				gets(mssg);
+				scanf("%[^\n]s",mssg);
 				printf("MSSG: %s\n", mssg);
+				send(ctrlsockfd, mssg, strlen(mssg)+1, 0);
 
-				send(newdatasockfd, mssg, strlen(mssg)+1, 0);
+
+				// servlen = sizeof(dataserv_addr);
+				// newdatasockfd = accept(datasockfd, (struct sockaddr *)&dataserv_addr, &servlen);
+
+				
 			}
 			
 		}
