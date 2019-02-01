@@ -44,52 +44,51 @@ void main(){
 	scanf("%[^\n]s",mssg);
 	send(ctrlsockfd, mssg, strlen(mssg)+1, 0);
 
-	recv(ctrlsockfd, &code, 3, 0);
-	printf("CODE: %d\n",code);
-	
+	recv(ctrlsockfd, &code, sizeof(int), 0);
+	printf("CODE: %d\n", code);
+
 	if(code==200){
 		printf("Successful\n");
 
-		if(fork()==0){
-			i=5;
-			while(mssg[i]==' ') i++;
-			while(mssg[i] != ' ' && mssg[i] != '\0'){
-				Y = 10*Y + (int)(mssg[i] - '0');
-				i++;
-			}
-			printf("Y: %ld\n", Y);
-			if((datasockfd=socket(AF_INET, SOCK_STREAM, 0)) < 0){
-				perror("Socket creation failed\n");
-				exit(0);
-			}
+		i=5;
+		while(mssg[i]==' ') i++;
+		while(mssg[i] != ' ' && mssg[i] != '\0'){
+			Y = 10*Y + (int)(mssg[i] - '0');
+			i++;
+		}
+			// if((datasockfd=socket(AF_INET, SOCK_STREAM, 0)) < 0){
+			// 	perror("Socket creation failed\n");
+			// 	exit(0);
+			// }
 			
-			cli_addr.sin_family = AF_INET;
-			cli_addr.sin_addr.s_addr = INADDR_ANY;
-			cli_addr.sin_port = htons(Y);
+			// cli_addr.sin_family = AF_INET;
+			// cli_addr.sin_addr.s_addr = INADDR_ANY;
+			// cli_addr.sin_port = htons(Y);
 			
-			if(bind(datasockfd,(const struct sockaddr *)&cli_addr, sizeof(cli_addr)) < 0){
-				perror("Binding error\n");
-				exit(0);
-			}
-			listen(datasockfd, 5);
-			printf("\nClient Server Running...\n");
-			for(i=0; i<MAX; i++) mssg[i]='\0';
+			// if(bind(datasockfd,(const struct sockaddr *)&cli_addr, sizeof(cli_addr)) < 0){
+			// 	perror("Binding error\n");
+			// 	exit(0);
+			// }
+			// listen(datasockfd, 5);
+			// printf("\nClient Server Running...\n");
+			// for(i=0; i<MAX; i++) mssg[i]='\0';
 		
-			while(1){
-				getchar();
-				printf("> ");
-				scanf("%[^\n]s",mssg);
-				printf("MSSG: %s\n", mssg);
-				send(ctrlsockfd, mssg, strlen(mssg)+1, 0);
+			// while(1){
+			// 	// getchar();
+			// 	fflush(stdin);
+			// 	printf("> ");
+			// 	scanf("%[^\n]s",mssg);
+			// 	printf("MSSG: %s\n", mssg);
+			// 	send(ctrlsockfd, mssg, strlen(mssg)+1, 0);
 
 
-				// servlen = sizeof(dataserv_addr);
-				// newdatasockfd = accept(datasockfd, (struct sockaddr *)&dataserv_addr, &servlen);
+			// 	// servlen = sizeof(dataserv_addr);
+			// 	// newdatasockfd = accept(datasockfd, (struct sockaddr *)&dataserv_addr, &servlen);
 
 				
-			}
+			// }
 			
-		}
+		
 	}
 	else if(code==503){
 		printf("Wrong Command\n");
@@ -101,5 +100,51 @@ void main(){
 		close(ctrlsockfd);
 		exit(0);
 		
+	}
+
+	while(1){
+		getchar();
+		printf("> ");
+		scanf("%[^\n]s", mssg);
+
+		if(mssg[0]=='g' && mssg[1]=='e' && mssg[2]=='t' && mssg[3]==' '){
+			send(ctrlsockfd, mssg, strlen(mssg) + 1, 0);
+			if(fork()==0){
+
+				if((datasockfd=socket(AF_INET, SOCK_STREAM, 0)) < 0){
+					perror("Socket creation failed\n");
+					exit(0);
+				}
+				
+				cli_addr.sin_family = AF_INET;
+				cli_addr.sin_addr.s_addr = INADDR_ANY;
+				cli_addr.sin_port = htons(Y);
+				
+				if(bind(datasockfd,(const struct sockaddr *)&cli_addr, sizeof(cli_addr)) < 0){
+					perror("Binding error\n");
+					exit(0);
+				}
+				listen(datasockfd, 5);
+				printf("\nClient Server Running...\n");
+
+				recv(ctrlsockfd, &code, sizeof(int), 0);
+				servlen = sizeof(dataserv_addr);
+				newdatasockfd = accept(datasockfd, (struct sockaddr *)&dataserv_addr, &servlen);
+
+			}
+			else{
+				
+			}
+		}		
+		send(ctrlsockfd, mssg, strlen(mssg) + 1, 0);
+
+		recv(ctrlsockfd, &code, sizeof(int), 0);
+		printf("CODE: %d\n", code);
+
+		if(code==421){
+			printf("Exit client\n");
+			close(ctrlsockfd);
+			exit(0);
+		}
 	}
 }
