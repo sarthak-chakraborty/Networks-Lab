@@ -18,7 +18,7 @@ void main(){
 	int clilen;
 	char mssg[MAX];
 	char buff[MAX];
-	int i, flag, OK;
+	int i, j, flag, OK;
 	long int Y;
 	int code_OK = 200;
 	int err1 = 501;
@@ -72,36 +72,96 @@ void main(){
 				}
 			}
 			if(flag == 1){
-				send(newctrlsockfd, &err2, 3, 0);
+				send(newctrlsockfd, &err2, sizeof(int), 0);
 				close(newctrlsockfd);
 				continue;
 			}
-			printf("Y: %ld\n",Y);
 			if(Y>1024 && Y<65535){
-				send(newctrlsockfd, &code_OK, 3, 0);
+				send(newctrlsockfd, &code_OK, sizeof(int), 0);
 				OK = 1;
 				break;
 			}
 			else{
-				send(newctrlsockfd, &err3, 3, 0);
+				send(newctrlsockfd, &err3, sizeof(int), 0);
 				close(newctrlsockfd);
 				continue;
 			}
 		}
 		else{
-			send(newctrlsockfd, &err2, 3, 0);
+			send(newctrlsockfd, &err2, sizeof(int), 0);
 			close(newctrlsockfd);
 			continue;
 		}
 	}
 
-	if(OK){
-		while(1){
-			recv(newctrlsockfd, mssg, 80, 0);
-			printf("MSSG Received: %s\n",mssg);
+	while(1){
+		fflush(stdin);
+		char dir[MAX];
+		char file[MAX];
+		recv(newctrlsockfd, mssg, 80, 0);
+		printf("%s\n", mssg);
 
-			
+		if(!strcmp(mssg, "quit")){
+			send(newctrlsockfd, &code_QUIT, sizeof(int), 0);
+			close(newctrlsockfd);
+			break;
 		}
+		j = 0;
+		if(mssg[0]=='c' && mssg[1]=='d' && mssg[2]==' '){
+			i=3;
+			while(mssg[i]==' ') i++;
+			while(mssg[i] != ' ' && mssg[i] != '\0'){
+				dir[j++] = mssg[i];
+				i++;
+			}
+			dir[j] = '\0';
+			printf("%s\n", dir);
+			if(chdir(dir) < -1)
+				send(newctrlsockfd, &err1, sizeof(int), 0);
+			else
+				send(newctrlsockfd, &code_OK, sizeof(int), 0);
+		}
+	
+		else if(mssg[0]=='g' && mssg[1]=='e' && mssg[2]=='t' && mssg[3]==' '){
+			i=4;
+			while(mssg[i]==' ') i++;
+			while(mssg[i] != ' ' && mssg[i] != '\0'){
+				file[j++] = mssg[i];
+				i++;
+			}
+			file[j] = '\0';
+			FILE *f = fopen(file, "r");
+			if(f > 0){
+				send(newctrlsockfd, &code_OK, sizeof(int), 0);
+				if(fork()==0){
+					if((datasockfd=socket(AF_INET, SOCK_STREAM, 0)) < 0){
+						perror("Socket creation failed\n");
+						exit(0);
+					}
+					
+					datacli_addr.sin_family = AF_INET;
+					datacli_addr.sin_addr.s_addr = INADDR_ANY;
+					datacli_addr.sin_port = htons(Y);
+
+					if(connect(datasockfd, (struct sockaddr *)&datacli_addr, sizeof(datacli_addr)) < 0){
+						perror("Unable to connect to server\n");
+						exit(0);
+					}
+
+					printf("Connected\n");
+				}
+			}
+			else
+				send(newctrlsockfd, &err3, sizeof(int), 0);
+		}
+
+	}
+		// while(1){
+		// 	recv(newctrlsockfd, mssg, 80, 0);
+		// 	printf("MSSG Received: %s\n",mssg);
+
+
+		// }
 		// if((datasockfd=socket(AF_INET, SOCK_STREAM, 0)) < 0){
 		// 	perror("Socket creation failed\n");
 		// 	exit(0);
@@ -123,5 +183,5 @@ void main(){
 		// 	recv(datasockfd, buff, 80, 0);
 		// 	printf("MSSG Received: %s\n", buff);
 		// }
-	}
+	
 }
