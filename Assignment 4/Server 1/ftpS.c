@@ -132,7 +132,6 @@ void main(){
 			file[j] = '\0';
 			FILE *f = fopen(file, "r");
 			if(f > 0){
-				send(newctrlsockfd, &code_OK, sizeof(int), 0);
 				if(fork()==0){
 					if((datasockfd=socket(AF_INET, SOCK_STREAM, 0)) < 0){
 						perror("Socket creation failed\n");
@@ -147,8 +146,15 @@ void main(){
 						perror("Unable to connect to server\n");
 						exit(0);
 					}
-
 					printf("Connected\n");
+					send(datasockfd, "HELLO", 10, 0);
+					close(datasockfd);
+					exit(0);
+
+				}
+				else{
+					wait(NULL);
+					send(newctrlsockfd, &code_OK, sizeof(int), 0);
 				}
 			}
 			else
