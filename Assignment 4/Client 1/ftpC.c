@@ -108,7 +108,6 @@ void main(){
 		scanf("%[^\n]s", mssg);
 
 		if(mssg[0]=='g' && mssg[1]=='e' && mssg[2]=='t' && mssg[3]==' '){
-			send(ctrlsockfd, mssg, strlen(mssg) + 1, 0);
 			if(fork()==0){
 
 				if((datasockfd=socket(AF_INET, SOCK_STREAM, 0)) < 0){
@@ -127,17 +126,22 @@ void main(){
 				listen(datasockfd, 5);
 				printf("\nClient Server Running...\n");
 
-				recv(ctrlsockfd, &code, sizeof(int), 0);
 				servlen = sizeof(dataserv_addr);
 				newdatasockfd = accept(datasockfd, (struct sockaddr *)&dataserv_addr, &servlen);
 
+				char abc[MAX];
+				recv(newdatasockfd, abc, 10, 0);
+				printf("ABC: %s\n",abc);
+				close(newdatasockfd);
+
 			}
 			else{
-				
+				send(ctrlsockfd, mssg, strlen(mssg) + 1, 0);
+				recv(ctrlsockfd, &code, sizeof(int), 0);
+				printf("CODE: %d\n", code);
 			}
 		}		
 		send(ctrlsockfd, mssg, strlen(mssg) + 1, 0);
-
 		recv(ctrlsockfd, &code, sizeof(int), 0);
 		printf("CODE: %d\n", code);
 
