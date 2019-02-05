@@ -30,13 +30,13 @@ void main(){
 	long int Y;
 
 	// Codes to send
-	int code_OK = 200;
-	int err1 = 501;
-	int err2 = 503;
-	int err3 = 550;
-	int err4 = 502;
-	int code_SUCC = 250;
-	int code_QUIT = 421;
+	int code_OK = htonl(200);
+	int err1 = htonl(501);
+	int err2 = htonl(503);
+	int err3 = htonl(550);
+	int err4 = htonl(502);
+	int code_SUCC = htonl(250);
+	int code_QUIT = htonl(421);
 	
 	// Creating control socket
 	if((ctrlsockfd=socket(AF_INET, SOCK_STREAM, 0)) < 0){
@@ -54,6 +54,11 @@ void main(){
 	serv_addr.sin_addr.s_addr = INADDR_ANY;
 	serv_addr.sin_port = htons(PORT_X);
 	
+	if (setsockopt(ctrlsockfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0){
+		perror("setsockopt(SO_REUSEADDR) failed");
+		exit(0);
+	}
+
 	// Binding the control server
 	if(bind(ctrlsockfd,(const struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0){
 		perror("Binding error\n");
@@ -106,23 +111,23 @@ void main(){
 
 				// If error is flagged, send appropriate error code and continue in the loop, else send code = 200
 				if(flag == 1){
-					send(newctrlsockfd, &err2, sizeof(int), 0);
+					send(newctrlsockfd, &err2, sizeof(err2), 0);
 					close(newctrlsockfd);
 					continue;
 				}
 				// The value of port must lie between 1024 and 65535
 				if(Y>1024 && Y<65535){
-					send(newctrlsockfd, &code_OK, sizeof(int), 0);
+					send(newctrlsockfd, &code_OK, sizeof(code_OK), 0);
 					break;
 				}
 				else{
-					send(newctrlsockfd, &err3, sizeof(int), 0);
+					send(newctrlsockfd, &err3, sizeof(err3), 0);
 					close(newctrlsockfd);
 					continue;
 				}
 			}
 			else{
-				send(newctrlsockfd, &err2, sizeof(int), 0);
+				send(newctrlsockfd, &err2, sizeof(err2), 0);
 				close(newctrlsockfd);
 				continue;
 			}
@@ -179,13 +184,13 @@ void main(){
 					}
 				}
 				if(flag){
-					send(newctrlsockfd, &err1, sizeof(int), 0);
+					send(newctrlsockfd, &err1, sizeof(err1), 0);
 					continue;
 				}
 				if(chdir(dir) < -1)
-					send(newctrlsockfd, &err1, sizeof(int), 0);
+					send(newctrlsockfd, &err1, sizeof(err1), 0);
 				else
-					send(newctrlsockfd, &code_OK, sizeof(int), 0);
+					send(newctrlsockfd, &code_OK, sizeof(code_OK), 0);
 			}
 		
 
@@ -211,7 +216,7 @@ void main(){
 					}
 				}
 				if(flag){
-					send(newctrlsockfd, &err1, sizeof(int), 0);
+					send(newctrlsockfd, &err1, sizeof(err1), 0);
 					continue;
 				}
 
@@ -267,15 +272,15 @@ void main(){
 						int pid = wait(&status);
 						if(WIFEXITED(status)){
 							if(WEXITSTATUS(status) == 0)
-								send(newctrlsockfd, &code_SUCC, sizeof(int), 0);
+								send(newctrlsockfd, &code_SUCC, sizeof(code_SUCC), 0);
 							else
-								send(newctrlsockfd, &err3, sizeof(int), 0);
+								send(newctrlsockfd, &err3, sizeof(err3), 0);
 						}
 					}
 				}
 				else{
 					// Send error code if the file cannot be opened for read
-					send(newctrlsockfd, &err3, sizeof(int), 0);
+					send(newctrlsockfd, &err3, sizeof(err3), 0);
 				}
 			}
 
@@ -304,7 +309,7 @@ void main(){
 						flag = 1;
 				}
 				if(flag){
-					send(newctrlsockfd, &err1, sizeof(int), 0);
+					send(newctrlsockfd, &err1, sizeof(err1), 0);
 					continue;
 				}
 
@@ -330,6 +335,7 @@ void main(){
 					datacli_addr.sin_port = htons(Y);
 
 					// Connect to the server at cleint side
+					usleep(1000);
 					if(connect(datasockfd, (struct sockaddr *)&datacli_addr, sizeof(datacli_addr)) < 0){
 						perror("Unable to connect to server\n");
 						exit(0);
@@ -362,9 +368,9 @@ void main(){
 					int pid = wait(&status);
 					if(WIFEXITED(status)){
 						if(WEXITSTATUS(status) == 0)
-							send(newctrlsockfd, &code_SUCC, sizeof(int), 0);
+							send(newctrlsockfd, &code_SUCC, sizeof(code_SUCC), 0);
 						else
-							send(newctrlsockfd, &err3, sizeof(int), 0);
+							send(newctrlsockfd, &err3, sizeof(err3), 0);
 					}
 				}
 				
@@ -373,7 +379,7 @@ void main(){
 
 			// If the command is not among these, then send an error code
 			else{
-				send(newctrlsockfd, &err4, sizeof(int), 0);
+				send(newctrlsockfd, &err4, sizeof(err4), 0);
 			}
 
 		}
