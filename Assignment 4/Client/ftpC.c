@@ -26,7 +26,8 @@ void main(){
 	struct sockaddr_in cli_addr, ctrlserv_addr, dataserv_addr;
 	int servlen;
 	char mssg[MAX];
-	char buff[MAX];
+	char buff[100];
+	char data[100];
 	char file[MAX];
 	int code;
 	int i, j, flag;
@@ -59,11 +60,11 @@ void main(){
 	printf("> ");
 	scanf("%[^\n]s",mssg);
 	send(ctrlsockfd, mssg, strlen(mssg)+1, 0);
-	recv(ctrlsockfd, &code, sizeof(int), 0);
-	printf("CODE: %d\n", code);
+	recv(ctrlsockfd, &code, sizeof(code), 0);
+	printf("CODE: %d\n", ntohl(code));
 
 	// If the received coe is 200, that is successful, parse the port number from the string
-	if(code==200){
+	if(ntohl(code)==200){
 		printf("MSSG: Valid Port number\n");
 		Y = 0;
 		i=5;
@@ -74,12 +75,12 @@ void main(){
 		}
 	}
 	// If any other error code is received, print appropriate message and exit
-	else if(code==503){
+	else if(ntohl(code)==503){
 		printf("MSSG: Invalid Command\n");
 		close(ctrlsockfd);
 		exit(0);
 	}
-	else if(code==550){
+	else if(ntohl(code)==550){
 		printf("MSSG: Invalid Port Number\n");
 		close(ctrlsockfd);
 		exit(0);
@@ -126,7 +127,16 @@ void main(){
 					i++;
 				}
 				file[j] = '\0';
+
+				char *word;
+				char *file1;
+				word = strtok(file,"/");
+				while(word!=NULL){
+					file1 = word;
+					word = strtok(NULL,"/");
+				}
 				int fd;
+
 
 				// Create data socket
 				if((datasockfd=socket(AF_INET, SOCK_STREAM, 0)) < 0){
@@ -139,6 +149,11 @@ void main(){
 				cli_addr.sin_addr.s_addr = INADDR_ANY;
 				cli_addr.sin_port = htons(Y);
 				
+				if (setsockopt(datasockfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0){
+    				perror("setsockopt(SO_REUSEADDR) failed");
+    				exit(0);
+				}
+
 				// Bind to the address to the socket
 				if(bind(datasockfd,(const struct sockaddr *)&cli_addr, sizeof(cli_addr)) < 0){
 					perror("Binding error\n");
@@ -155,7 +170,7 @@ void main(){
 				int c = 0;
 				while(rret=recv(newdatasockfd, buff, PACKET, 0)){
 					if(c==0)
-						fd = open(file, O_WRONLY|O_CREAT|O_TRUNC);
+						fd = open(file1, O_WRONLY|O_CREAT|O_TRUNC);
 					for(i=0; i<rret; i++){
 						if(buff[i] != '\0')
 							write(fd, &buff[i], 1);
@@ -169,16 +184,16 @@ void main(){
 			else{
 				send(ctrlsockfd, mssg, strlen(mssg) + 1, 0);
 				// Receive the response code from the server
-				recv(ctrlsockfd, &code, sizeof(int), 0);
-				printf("CODE: %d\n", code);
+				recv(ctrlsockfd, &code, sizeof(code), 0);
+				printf("CODE: %d\n", ntohl(code));
 
 				// If error code, then kill the process C_D
-				if(code == 550){
+				if(ntohl(code) == 550){
 					printf("MSSG: An error occured while receiving the file\n");
 					kill(pid, SIGTERM);
 				}
 				// If the error code is 250, then wait for the process to complete
-				else if(code == 250){
+				else if(ntohl(code) == 250){
 					wait(NULL);
 					printf("MSSG: File successfully received\n");
 				}
@@ -224,6 +239,11 @@ void main(){
 				cli_addr.sin_addr.s_addr = INADDR_ANY;
 				cli_addr.sin_port = htons(Y);
 				
+				if (setsockopt(datasockfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0){
+    				perror("setsockopt(SO_REUSEADDR) failed");
+    				exit(0);
+				}
+
 				// Bind the socket
 				if(bind(datasockfd,(const struct sockaddr *)&cli_addr, sizeof(cli_addr)) < 0){
 					perror("Binding error\n");
@@ -239,30 +259,31 @@ void main(){
 				int rret;
 				while(rret=read(fd, buff, PACKET)){
 					if(rret < PACKET){
+						data[0] = 'N';
 						for(i=rret; i<PACKET; i++)
 							buff[i] = '\0';
 					}
+					
 					send(newdatasockfd, buff, PACKET, 0);
 				}
 				close(fd);
-				close(newdatasockfd);
-				exit(0);
+				wait(NULL);
 			}
 			
 			else{
 				send(ctrlsockfd, mssg, strlen(mssg) + 1, 0);
 				// Receive the code from the server
-				recv(ctrlsockfd, &code, sizeof(int), 0);
-				printf("CODE: %d\n", code);
+				recv(ctrlsockfd, &code, sizeof(code), 0);
+				printf("CODE: %d\n", ntohl(code));
 
 				// If error code, kill the process
-				if(code == 550){
+				if(ntohl(code) == 550){
 					printf("MSSG: An error occurred while sending the file\n");
 					kill(pid, SIGTERM);
 				}
 				// If successful, wait for the child to close.
-				else if(code == 250){
-					wait(NULL);
+				else if(ntohl(code) == 250){
+					kill(pid, SIGTERM);
 					printf("MSSG: File successfully sent\n");
 				}
 
@@ -273,20 +294,20 @@ void main(){
 		// If not a 'get' or 'put' command, send it to the server
 		else{		
 			send(ctrlsockfd, mssg, strlen(mssg) + 1, 0);
-			recv(ctrlsockfd, &code, sizeof(int), 0);
-			printf("CODE: %d\n", code);
+			recv(ctrlsockfd, &code, sizeof(code), 0);
+			printf("CODE: %d\n", ntohl(code));
 
 			// If code = 421, then exit from the client
-			if(code==421){
+			if(ntohl(code)==421){
 				printf("MSSG: Exit client\n");
 				close(ctrlsockfd);
 				exit(0);
 			}
-			else if(code==502)
+			else if(ntohl(code)==502)
 				printf("MSSG: Invalid Command\n");
-			else if(code==200)
+			else if(ntohl(code)==200)
 				printf("MSSG: Successfully executed the command\n");
-			else if(code==501)
+			else if(ntohl(code)==501)
 				printf("MSSG: Invalid format of the command\n");
 		}
 	}
