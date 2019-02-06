@@ -26,8 +26,9 @@ void main(){
 	struct sockaddr_in cli_addr, ctrlserv_addr, dataserv_addr;
 	int servlen;
 	char mssg[MAX];
+	char cmnd[MAX];
 	char buff[100];
-	char data[100];
+	char data[103];
 	char file[MAX];
 	int code;
 	int i, j, flag;
@@ -58,7 +59,18 @@ void main(){
 
 	// Prompt for the first command
 	printf("> ");
-	scanf("%[^\n]s",mssg);
+	scanf("%[^\n]s",cmnd);
+
+	// Handling the leading spaces
+	i=0;
+	while(cmnd[i]==' ' || cmnd[i]=='\t') i++;
+	j=0;
+	while(cmnd[i] != '\0'){
+		mssg[j++] = cmnd[i];
+		i++;
+	}
+	mssg[j] = '\0';
+	
 	send(ctrlsockfd, mssg, strlen(mssg)+1, 0);
 	recv(ctrlsockfd, &code, sizeof(code), 0);
 	printf("CODE: %d\n", ntohl(code));
@@ -97,8 +109,18 @@ void main(){
 		fflush(stdin);
 		getchar();
 		printf("\n> ");
-		scanf("%[^\n]s", mssg);
+		scanf("%[^\n]s", cmnd);
 
+
+		// Handling the leading spaces
+		i=0;
+		while(cmnd[i]==' ' || cmnd[i]=='\t') i++;
+		j=0;
+		while(cmnd[i] != '\0'){
+			mssg[j++] = cmnd[i];
+			i++;
+		}
+		mssg[j] = '\0';
 
 
 		/* If the message is a 'get' message, fork a child process
@@ -168,17 +190,29 @@ void main(){
 				// Receive the data from the data socket created and write it to a file in client side
 				int rret;
 				int c = 0;
-				while(rret=recv(newdatasockfd, buff, PACKET, 0)){
+				char header;
+				char character;
+				unsigned char bytes[2];
+				while(recv(newdatasockfd, &header, 1, 0)){
 					if(c==0)
-						fd = open(file1, O_WRONLY|O_CREAT|O_TRUNC);
-					for(i=0; i<rret; i++){
-						if(buff[i] != '\0')
-							write(fd, &buff[i], 1);
+						fd = open(file, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+					unsigned short int n;
+					recv(newdatasockfd, bytes, 2, 0);
+					n = (int)bytes[0];
+					n = n << 8;
+					n += (int)bytes[1];
+					for(i=0; i<n; i++){
+						recv(newdatasockfd, &character, 1, 0);
+						if(character != '\0')
+							write(fd, &character, 1);
 					}
 					c=1;
+					if(header == 'L')
+						break;
 				}
 				close(fd);
 				close(newdatasockfd);
+				close(datasockfd);
 				exit(0);
 			}	
 			else{
@@ -259,15 +293,25 @@ void main(){
 				int rret;
 				while(rret=read(fd, buff, PACKET)){
 					if(rret < PACKET){
-						data[0] = 'N';
+						data[0] = 'L';
 						for(i=rret; i<PACKET; i++)
 							buff[i] = '\0';
 					}
-					
-					send(newdatasockfd, buff, PACKET, 0);
+					else
+						data[0] = 'N';
+					data[1] = (rret >> 8) & 0xFF;
+					data[2] = (rret) & 0xFF;
+					for(i=0; i<rret; i++)
+						data[i+3] = buff[i];
+					if(data[0] == 'L')
+						send(newdatasockfd, data, rret+3, 0);
+					else
+						send(newdatasockfd, data, PACKET+3, 0);
 				}
 				close(fd);
-				wait(NULL);
+				close(newdatasockfd);
+				close(datasockfd);
+				while(1);
 			}
 			
 			else{
@@ -285,6 +329,10 @@ void main(){
 				else if(ntohl(code) == 250){
 					kill(pid, SIGTERM);
 					printf("MSSG: File successfully sent\n");
+				}
+				else if(ntohl(code) == 501){
+					kill(pid, SIGTERM);
+					printf("MSSG: Invalid filename\n");
 				}
 
 			}
@@ -308,7 +356,7 @@ void main(){
 			else if(ntohl(code)==200)
 				printf("MSSG: Successfully executed the command\n");
 			else if(ntohl(code)==501)
-				printf("MSSG: Invalid format of the command\n");
+				printf("MSSG: Invalid format\n");
 		}
 	}
 }
