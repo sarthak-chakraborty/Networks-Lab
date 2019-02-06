@@ -24,8 +24,10 @@ void main(){
 	int ctrlsockfd, datasockfd, newctrlsockfd;
 	struct sockaddr_in ctrlcli_addr, datacli_addr, serv_addr;
 	int clilen;
+	char cmnd[MAX];
 	char mssg[MAX];
-	char buff[MAX];
+	char buff[100];
+	char data[103];
 	int i, j, flag;
 	long int Y;
 
@@ -84,9 +86,21 @@ void main(){
 			newctrlsockfd = accept(ctrlsockfd, (struct sockaddr *)&ctrlcli_addr, &clilen);
 
 			// Receive First Control command
-			recv(newctrlsockfd, mssg, 80, 0);
-			printf("MSSG: %s\n",mssg);
+			recv(newctrlsockfd, cmnd, 80, 0);
+			printf("MSSG: %s\n",cmnd);
+
+
+			// Handling the leading spaces
+			i=0;
+			while(cmnd[i]==' ' || cmnd[i]=='\t') i++;
+			j=0;
+			while(cmnd[i] != '\0'){
+				mssg[j++] = cmnd[i];
+				i++;
+			}
+			mssg[j] = '\0';
 			
+
 			Y = 0;
 			flag = 0;
 			// Checking if the command starts with 'port'
@@ -147,9 +161,19 @@ void main(){
 			flag = 0;
 
 			// Receive the control command over control socket
-			recv(newctrlsockfd, mssg, 80, 0);
-			printf("%s\n", mssg);
+			recv(newctrlsockfd, cmnd, 80, 0);
+			printf("%s\n", cmnd);
 
+
+			// Handling the leading spaces
+			i=0;
+			while(cmnd[i]==' ' || cmnd[i]=='\t') i++;
+			j=0;
+			while(cmnd[i] != '\0'){
+				mssg[j++] = cmnd[i];
+				i++;
+			}
+			mssg[j] = '\0';
 
 
 			// 'QUIT' COMMAND
@@ -160,8 +184,6 @@ void main(){
 				break;
 			}
 
-			j = 0;
-
 
 
 
@@ -169,6 +191,7 @@ void main(){
 			/* If the command is 'cd', them get the directory name and change directory.
 			   If successful, send code = 200, else an error code.
 			*/
+			j = 0;
 			if(mssg[0]=='c' && mssg[1]=='d' && mssg[2]==' '){
 				i=3;
 				while(mssg[i]==' ' || mssg[i]=='\t') i++;
@@ -253,11 +276,21 @@ void main(){
 						int err;
 						while(rret=read(fd, buff, PACKET)){
 							if(rret < PACKET){
+								data[0] = 'L';
 								for(i=rret; i<PACKET; i++)
 									buff[i] = '\0';
 							}
-							err = send(datasockfd, buff, PACKET, 0);
-							// Exit if some error occured while sending
+							else
+								data[0] = 'N';
+							data[1] = (rret >> 8) & 0xFF;
+							data[2] = (rret) & 0xFF;
+							for(i=0; i<rret; i++)
+								data[i+3] = buff[i];
+							if(data[0] == 'L')
+								err = send(datasockfd, data, rret+3, 0);
+							else
+								err = send(datasockfd, data, PACKET+3, 0);
+
 							if(err == -1)
 								exit(1);
 						}	
@@ -345,14 +378,25 @@ void main(){
 					int rret;
 					int c = 0;
 					int fd;
-					while(rret=recv(datasockfd, buff, PACKET, 0)){
+					char header;
+					char character;
+					unsigned char bytes[2];
+					while(recv(datasockfd, &header, 1, 0)){
 						if(c==0)
-							fd = open(file, O_WRONLY|O_CREAT|O_TRUNC);
-						for(i=0; i<rret; i++){
-							if(buff[i] != '\0')
-								write(fd, &buff[i], 1);
+							fd = open(file, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+						unsigned short int n;
+						recv(datasockfd, bytes, 2, 0);
+						n = (int)bytes[0];
+						n = n << 8;
+						n += (int)bytes[1];
+						for(i=0; i<n; i++){
+							recv(datasockfd, &character, 1, 0);
+							if(character != '\0')
+								write(fd, &character, 1);
 						}
 						c=1;
+						if(header == 'L')
+							break;
 					}
 					close(fd);
 					close(datasockfd);
