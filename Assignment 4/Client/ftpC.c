@@ -70,13 +70,13 @@ void main(){
 		i++;
 	}
 	mssg[j] = '\0';
-	
+
 	send(ctrlsockfd, mssg, strlen(mssg)+1, 0);
 	recv(ctrlsockfd, &code, sizeof(code), 0);
-	printf("CODE: %d\n", ntohl(code));
+	printf("CODE: %d\n", ntohs(code));
 
 	// If the received coe is 200, that is successful, parse the port number from the string
-	if(ntohl(code)==200){
+	if(ntohs(code)==200){
 		printf("MSSG: Valid Port number\n");
 		Y = 0;
 		i=5;
@@ -87,12 +87,12 @@ void main(){
 		}
 	}
 	// If any other error code is received, print appropriate message and exit
-	else if(ntohl(code)==503){
+	else if(ntohs(code)==503){
 		printf("MSSG: Invalid Command\n");
 		close(ctrlsockfd);
 		exit(0);
 	}
-	else if(ntohl(code)==550){
+	else if(ntohs(code)==550){
 		printf("MSSG: Invalid Port Number\n");
 		close(ctrlsockfd);
 		exit(0);
@@ -203,8 +203,7 @@ void main(){
 					n += (int)bytes[1];
 					for(i=0; i<n; i++){
 						recv(newdatasockfd, &character, 1, 0);
-						if(character != '\0')
-							write(fd, &character, 1);
+						write(fd, &character, 1);
 					}
 					c=1;
 					if(header == 'L')
@@ -219,17 +218,21 @@ void main(){
 				send(ctrlsockfd, mssg, strlen(mssg) + 1, 0);
 				// Receive the response code from the server
 				recv(ctrlsockfd, &code, sizeof(code), 0);
-				printf("CODE: %d\n", ntohl(code));
+				printf("CODE: %d\n", ntohs(code));
 
 				// If error code, then kill the process C_D
-				if(ntohl(code) == 550){
+				if(ntohs(code) == 550){
 					printf("MSSG: An error occured while receiving the file\n");
 					kill(pid, SIGTERM);
 				}
 				// If the error code is 250, then wait for the process to complete
-				else if(ntohl(code) == 250){
+				else if(ntohs(code) == 250){
 					wait(NULL);
 					printf("MSSG: File successfully received\n");
+				}
+				else if(ntohs(code) == 501){
+					kill(pid, SIGTERM);
+					printf("MSSG: Invalid Argument\n");
 				}
 			}
 		}
@@ -292,11 +295,8 @@ void main(){
 				// Send the contents of the file to the server
 				int rret;
 				while(rret=read(fd, buff, PACKET)){
-					if(rret < PACKET){
+					if(rret < PACKET)
 						data[0] = 'L';
-						for(i=rret; i<PACKET; i++)
-							buff[i] = '\0';
-					}
 					else
 						data[0] = 'N';
 					data[1] = (rret >> 8) & 0xFF;
@@ -318,23 +318,22 @@ void main(){
 				send(ctrlsockfd, mssg, strlen(mssg) + 1, 0);
 				// Receive the code from the server
 				recv(ctrlsockfd, &code, sizeof(code), 0);
-				printf("CODE: %d\n", ntohl(code));
+				printf("CODE: %d\n", ntohs(code));
 
 				// If error code, kill the process
-				if(ntohl(code) == 550){
+				if(ntohs(code) == 550){
 					printf("MSSG: An error occurred while sending the file\n");
 					kill(pid, SIGTERM);
 				}
 				// If successful, wait for the child to close.
-				else if(ntohl(code) == 250){
+				else if(ntohs(code) == 250){
 					kill(pid, SIGTERM);
 					printf("MSSG: File successfully sent\n");
 				}
-				else if(ntohl(code) == 501){
+				else if(ntohs(code) == 501){
 					kill(pid, SIGTERM);
-					printf("MSSG: Invalid filename\n");
+					printf("MSSG: Invalid Argument\n");
 				}
-
 			}
 		}
 		
@@ -343,20 +342,20 @@ void main(){
 		else{		
 			send(ctrlsockfd, mssg, strlen(mssg) + 1, 0);
 			recv(ctrlsockfd, &code, sizeof(code), 0);
-			printf("CODE: %d\n", ntohl(code));
+			printf("CODE: %d\n", ntohs(code));
 
 			// If code = 421, then exit from the client
-			if(ntohl(code)==421){
+			if(ntohs(code)==421){
 				printf("MSSG: Exit client\n");
 				close(ctrlsockfd);
 				exit(0);
 			}
-			else if(ntohl(code)==502)
+			else if(ntohs(code)==502)
 				printf("MSSG: Invalid Command\n");
-			else if(ntohl(code)==200)
+			else if(ntohs(code)==200)
 				printf("MSSG: Successfully executed the command\n");
-			else if(ntohl(code)==501)
-				printf("MSSG: Invalid format\n");
+			else if(ntohs(code)==501)
+				printf("MSSG: Invalid Argument\n");
 		}
 	}
 }
