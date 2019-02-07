@@ -32,13 +32,13 @@ void main(){
 	long int Y;
 
 	// Codes to send
-	int code_OK = htonl(200);
-	int err1 = htonl(501);
-	int err2 = htonl(503);
-	int err3 = htonl(550);
-	int err4 = htonl(502);
-	int code_SUCC = htonl(250);
-	int code_QUIT = htonl(421);
+	int code_OK = htons(200);
+	int err1 = htons(501);
+	int err2 = htons(503);
+	int err3 = htons(550);
+	int err4 = htons(502);
+	int code_SUCC = htons(250);
+	int code_QUIT = htons(421);
 	
 	// Creating control socket
 	if((ctrlsockfd=socket(AF_INET, SOCK_STREAM, 0)) < 0){
@@ -178,8 +178,20 @@ void main(){
 
 			// 'QUIT' COMMAND
 			// If the command is quit, send a code = 421 and quit the process and return to accept from control socket
-			if(!strcmp(mssg, "quit")){
-				send(newctrlsockfd, &code_QUIT, sizeof(int), 0);
+			if(mssg[0]=='q' && mssg[1]=='u' && mssg[2]=='i' && mssg[3]=='t'){
+				i=4;
+				while(mssg[i] != '\0'){
+					if(mssg[i] != ' ' && mssg[i] != '\t'){
+						flag=1;
+						break;
+					}
+					i++;
+				}
+				if(flag){
+					send(newctrlsockfd, &err4, sizeof(err4), 0);
+					continue;
+				}
+				send(newctrlsockfd, &code_QUIT, sizeof(code_OK), 0);
 				close(newctrlsockfd);
 				break;
 			}
@@ -275,11 +287,9 @@ void main(){
 						int rret;
 						int err;
 						while(rret=read(fd, buff, PACKET)){
-							if(rret < PACKET){
+							if(rret < PACKET)
 								data[0] = 'L';
-								for(i=rret; i<PACKET; i++)
-									buff[i] = '\0';
-							}
+
 							else
 								data[0] = 'N';
 							data[1] = (rret >> 8) & 0xFF;
@@ -391,8 +401,7 @@ void main(){
 						n += (int)bytes[1];
 						for(i=0; i<n; i++){
 							recv(datasockfd, &character, 1, 0);
-							if(character != '\0')
-								write(fd, &character, 1);
+							write(fd, &character, 1);
 						}
 						c=1;
 						if(header == 'L')
