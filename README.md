@@ -18,3 +18,7 @@ UDP socket is responsible for the response of a DNS client asking for the IP add
 
 ### ASSIGNMENT 4
 Implementation of active mode FTP, where a server and client creats a TCP server and TCP client each which acts as a control and data socket.
+
+
+### ASSIGNMENT 5
+Implementation of TCP socket where we need to transfer file in a fixed blocks. Use of MSG_WAITALL flag is used in recv() call.
