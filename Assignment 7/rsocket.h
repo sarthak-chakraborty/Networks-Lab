@@ -9,9 +9,13 @@
 #include<netinet/in.h>
 #include<sys/socket.h>
 #include<sys/types.h>
+#include<sys/select.h>
+#include<sys/time.h>
 #include<pthread.h>
-#define T 2
+#define T_SEC 2
+#define T_USEC 0
 #define PROB 0.05
+#define SOCK_MRP 100
 
 
 int r_socket(int, int, int);
@@ -21,5 +25,25 @@ int r_recvfrom(int, void *, size_t, int, struct sockaddr *, soxklen_t *);
 int r_close(int);
 
 int dropMessage(float);
+
+
+typedef struct{
+	char buff[100];
+	struct sockaddr src_addr;
+}recv_buff;
+
+
+typedef struct{
+	time_t sent_time;
+	struct sockaddr dest_addr;
+	int id;
+	char mssg[100];
+}unack_mssg;
+
+
+typedef struct{
+	int id;
+}recv_mssg_id;
+
 
 #endif
