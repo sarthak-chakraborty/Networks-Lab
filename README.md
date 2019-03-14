@@ -22,3 +22,11 @@ Implementation of active mode FTP, where a server and client creats a TCP server
 
 ### ASSIGNMENT 5
 Implementation of TCP socket where we need to transfer file in a fixed blocks. Use of MSG_WAITALL flag is used in recv() call.
+
+
+### ASSIGNMENT 6
+Implementation of a concurrent server of TCP and UDP like Assignment 3 but in non blocking mode. Both the sockets must be non-blocking. TCP is made unblocking by using the fcnt() function while use of MSG_DONTWAIT is used in the UDP recvfrom() call to make the two sockets non-blocking.
+
+
+### ASSIGNMENT 7
+A reliable connection over an unreliable UDP socket. A socket MRP is designed which will be make a reliable communication using an underlying unreliable UDP socket. In particular, we have to implement a message-oriented, reliable and exactly-once delivery communication layer.
