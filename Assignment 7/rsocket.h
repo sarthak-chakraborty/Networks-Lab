@@ -12,6 +12,7 @@
 #include<sys/select.h>
 #include<sys/time.h>
 #include<pthread.h>
+
 #define T_SEC 2
 #define T_USEC 0
 #define PROB 0.05
@@ -21,7 +22,7 @@
 int r_socket(int, int, int);
 int r_bind(int, const struct sockaddr *, socklen_t);
 int r_sendto(int, const void *, size_t, int, const struct sockaddr *, socklen_t);
-int r_recvfrom(int, void *, size_t, int, struct sockaddr *, soxklen_t *);
+int r_recvfrom(int, char *, size_t, int, struct sockaddr *, socklen_t *);
 int r_close(int);
 
 int dropMessage(float);
@@ -37,6 +38,7 @@ typedef struct{
 	time_t sent_time;
 	struct sockaddr dest_addr;
 	int id;
+	int flags;
 	char mssg[100];
 }unack_mssg;
 
