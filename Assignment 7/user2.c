@@ -25,8 +25,8 @@ int main() {
 	r_sendto(sockfd, (const char *)hello, strlen(hello), 0, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 
     printf("Hello message sent from client\n"); 
 
-    r_sendto(sockfd, (const char *)hello, strlen(hello), 0, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 
-    printf("Hello message sent from client\n"); 
+    // r_sendto(sockfd, (const char *)hello, strlen(hello), 0, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 
+    // printf("Hello message sent from client\n"); 
            
     r_close(sockfd); 
     return 0; 

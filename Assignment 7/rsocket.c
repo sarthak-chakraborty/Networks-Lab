@@ -8,6 +8,7 @@ int id = 1;
 int size_unack = 0;
 int size_recv_id = 0;
 int size_recv_buf = 0;
+int count = 1;
 
 int sockfd;
 
@@ -21,6 +22,8 @@ void handleRetransmit(){
 			char num[4];
 			sprintf(num, "%03d", unack_mssg_table[i].id);
 			char mssg[104];
+			memset(mssg, NULL, sizeof(mssg));
+
 			strcat(mssg, "M");
 			strcat(mssg, num);
 			strcat(mssg, unack_mssg_table[i].mssg);
@@ -36,14 +39,19 @@ void handleReceive(){
 	struct sockaddr_in cliaddr;
 	socklen_t clilen;
 
+	clilen = sizeof(cliaddr);
+	memset(buf, NULL, sizeof(buf));
 	int n = recvfrom(sockfd, buf, 104, 0, (struct sockaddr *)&cliaddr, &clilen);
+	if(n<0){
+		perror("Error detected\n");
+		return;
+	}
 	buf[n] = '\0';
-	printf("%s\n",buf);
+	// printf("%d, %s\n",n, buf);
 
 	if(dropMessage(PROB) == 0){
-		if(buf[0] == 'M'){
+		if(buf[0] == 'M')
 			handleAppMsgRecv(buf, (struct sockaddr *)&cliaddr, clilen);
-		}
 		else if(buf[0] == 'A')
 			handleACKMsgRecv(buf);
 	}
@@ -77,7 +85,7 @@ void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 	strcat(ack, num);
 	ack[4] = '\0';
 	sendto(sockfd, ack, strlen(ack), 0, cliaddr, clilen);
-	printf("%s sent\n",ack);
+	// printf("%s sent\n",ack);
 	
 	recv_mssg_id_table[size_recv_id].id = id;
 
@@ -121,7 +129,7 @@ void *runner(void *parameters){
 		if(r<0)
 			continue;
 		if(FD_ISSET(sockfd, &readfs)){
-			printf("DIE MOFO\n");
+			// printf("\n");
 			handleReceive();
 		}
 		else
@@ -161,6 +169,8 @@ int r_sendto(int sockfd, const void *buff, size_t len, int flags, const struct s
 	char num[4];
 	sprintf(num, "%03d", id);
 	char mssg[104];
+	memset(mssg, NULL, sizeof(mssg));
+
 	strcat(mssg, "M");
 	strcat(mssg, num);
 	strcat(mssg, (char *)buff);
@@ -199,6 +209,7 @@ int r_recvfrom(int sockfd, char *buff, size_t len, int flags, struct sockaddr *s
 		*addrlen = sizeof(*src_addr);
 		return (int)strlen(recv_buff_table[0].buff);
 	}
+	return -1;
 
 }
 
@@ -206,7 +217,7 @@ int r_recvfrom(int sockfd, char *buff, size_t len, int flags, struct sockaddr *s
 int r_close(int sockfd){
 	while(size_unack != 0){
 		// printf("Over Here: %d\n",size_unack);
-		sleep(2);
+		sleep(0.5);
 	}
 	// printf("Over Here\n");
 

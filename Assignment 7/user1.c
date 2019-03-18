@@ -32,10 +32,10 @@ int main() {
     buffer[n] = '\0'; 
     printf("%s\n", buffer);
 
-    char buf[1024]; 
-    n = r_recvfrom(sockfd, buf, 1024, 0, (struct sockaddr *)&cliaddr, &len); 
-    buf[n] = '\0'; 
-    printf("%s\n", buf);
+    // char buf[1024]; 
+    // n = r_recvfrom(sockfd, buf, 1024, 0, (struct sockaddr *)&cliaddr, &len); 
+    // buf[n] = '\0'; 
+    // printf("%s\n", buf);
 
     r_close(sockfd);
     return 0; 
