@@ -1,42 +1,38 @@
 #include "rsocket.h"
   
 int main() { 
-    int sockfd; 
-    struct sockaddr_in servaddr, cliaddr; 
-      
+    int sockfd, i; 
+    struct sockaddr_in servaddr; 
+  
     sockfd = r_socket(AF_INET, SOCK_MRP, 0);
     if(sockfd < 0){ 
         printf("socket creation failed\n"); 
         exit(1); 
     } 
-      
-    memset(&servaddr, 0, sizeof(servaddr)); 
-    memset(&cliaddr, 0, sizeof(cliaddr)); 
-      
-    servaddr.sin_family    = AF_INET; 
-    servaddr.sin_addr.s_addr = INADDR_ANY; 
-    servaddr.sin_port = htons(50088); 
-      
-    if(r_bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) == 0 ){
-        printf("bind failed\n"); 
-        exit(1); 
-    } 
-    
-    printf("\nUser1....\n");
   
-    int n; 
+    memset(&servaddr, 0, sizeof(servaddr)); 
+      
+    servaddr.sin_family = AF_INET; 
+    servaddr.sin_port = htons(50088); 
+    servaddr.sin_addr.s_addr = INADDR_ANY; 
+      
+    int n;
     socklen_t len;
-    char buffer[1024]; 
- 
-    n = r_recvfrom(sockfd, buffer, 1024, 0, (struct sockaddr *)&cliaddr, &len); 
-    buffer[n] = '\0'; 
-    printf("%s\n", buffer);
 
-    // char buf[1024]; 
-    // n = r_recvfrom(sockfd, buf, 1024, 0, (struct sockaddr *)&cliaddr, &len); 
-    // buf[n] = '\0'; 
-    // printf("%s\n", buf);
+    char buff[500];
+    printf("Enter a long string: ");
+    gets(buff);
 
-    r_close(sockfd);
+
+    printf("User1....\n");
+
+    for(i=0; i<strlen(buff)+1; i++){
+        r_sendto(sockfd, (const char *)&(buff[i]), 1, 0, (const struct sockaddr *)&servaddr, sizeof(servaddr));
+    }
+
+    printf("Hello message sent from client\n"); 
+
+           
+    r_close(sockfd); 
     return 0; 
-}
+} 

@@ -18,7 +18,7 @@ void handleRetransmit(){
 	time(&t);
 	int i;
 	for(i=0; i<size_unack; i++){
-		if(t - unack_mssg_table[i].sent_time >= T_SEC){
+		if((t - unack_mssg_table[i].sent_time) >= T_SEC){
 			char num[4];
 			sprintf(num, "%03d", unack_mssg_table[i].id);
 			char mssg[104];
@@ -75,7 +75,9 @@ void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 		}
 	}
 	char mssg[100];
+	memset(mssg, NULL, strlen(mssg));
 	memcpy(mssg, &buf[4], 100);
+	// printf("MSSG: %s\n",mssg);
 	strcpy(recv_buff_table[size_recv_buf].buff, mssg);
 	recv_buff_table[size_recv_buf].src_addr = *cliaddr;
 
@@ -128,10 +130,8 @@ void *runner(void *parameters){
 
 		if(r<0)
 			continue;
-		if(FD_ISSET(sockfd, &readfs)){
-			// printf("\n");
+		if(FD_ISSET(sockfd, &readfs))
 			handleReceive();
-		}
 		else
 			handleRetransmit();
 	}
@@ -171,9 +171,14 @@ int r_sendto(int sockfd, const void *buff, size_t len, int flags, const struct s
 	char mssg[104];
 	memset(mssg, NULL, sizeof(mssg));
 
+	char buf[100];
+	memset(buf, NULL, sizeof(buf));
+	memcpy(buf, &buff[0], len);
+
 	strcat(mssg, "M");
 	strcat(mssg, num);
-	strcat(mssg, (char *)buff);
+	strcat(mssg, buf);
+	// printf("%s, %s\n",buf, mssg);
 	int n = sendto(sockfd, mssg, len+4, flags, dest_addr, addrlen);
 
 	if(n<4)
@@ -182,7 +187,7 @@ int r_sendto(int sockfd, const void *buff, size_t len, int flags, const struct s
 	time(&(unack_mssg_table[size_unack].sent_time));
 	unack_mssg_table[size_unack].dest_addr = *dest_addr;
 	unack_mssg_table[size_unack].id = id;
-	strcpy(unack_mssg_table[size_unack].mssg, buff);
+	strcpy(unack_mssg_table[size_unack].mssg, buf);
 	unack_mssg_table[size_unack].flags = flags;
 
 	id++;
@@ -193,7 +198,7 @@ int r_sendto(int sockfd, const void *buff, size_t len, int flags, const struct s
 
 
 int r_recvfrom(int sockfd, char *buff, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen){
-	while(size_recv_buf == 0) sleep(2);
+	while(size_recv_buf == 0) sleep(0.5);
 
 	if(len < strlen(recv_buff_table[0].buff)){
 		for(int i=0; i<len; i++){
@@ -201,12 +206,22 @@ int r_recvfrom(int sockfd, char *buff, size_t len, int flags, struct sockaddr *s
 		}
 		*src_addr = recv_buff_table[0].src_addr;
 		*addrlen = sizeof(*src_addr);
+
+		for(int i=0; i<size_recv_buf-1; i++)
+			recv_buff_table[i] = recv_buff_table[i+1];
+
+		size_recv_buf--;
 		return (int)len;
 	}
 	else{
 		strcpy(buff, recv_buff_table[0].buff);
 		*src_addr = recv_buff_table[0].src_addr;
 		*addrlen = sizeof(*src_addr);
+
+		for(int i=0; i<size_recv_buf-1; i++)
+			recv_buff_table[i] = recv_buff_table[i+1];
+
+		size_recv_buf--;
 		return (int)strlen(recv_buff_table[0].buff);
 	}
 	return -1;
@@ -216,18 +231,13 @@ int r_recvfrom(int sockfd, char *buff, size_t len, int flags, struct sockaddr *s
 
 int r_close(int sockfd){
 	while(size_unack != 0){
-		// printf("Over Here: %d\n",size_unack);
 		sleep(0.5);
 	}
-	// printf("Over Here\n");
 
 	free(recv_buff_table);
-	// printf("Over Here\n");
 	free(unack_mssg_table);
-	// printf("Over Here\n");
 	free(recv_mssg_id_table);
 
-	// printf("Over Here\n");
 	int n = close(sockfd);
 	if(n>0)
 		return 0;
