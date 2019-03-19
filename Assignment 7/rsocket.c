@@ -13,6 +13,7 @@ int count = 1;
 int sockfd;
 
 pthread_mutex_t recv_buff_lock;
+pthread_mutex_t unack_lock;
 
 
 void handleRetransmit(){
@@ -64,7 +65,7 @@ void handleReceive(){
 void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 	int i;
 
-	printf("<%s>\n",buf);
+	// printf("<%s>\n",buf);
 
 	char num[4] = {buf[1], buf[2], buf[3], '\0'};
 	int id = atoi(num);
@@ -72,6 +73,7 @@ void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 		if(recv_mssg_id_table[i].id == id){
 			char ack[5];
 			ack[0] = 'A';
+			ack[1] = '\0';
 			strcat(ack, num);
 			ack[4] = '\0';
 			sendto(sockfd, ack, strlen(ack), 0, cliaddr, clilen);
@@ -83,7 +85,6 @@ void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 	memset(mssg, NULL, strlen(mssg));
 	memcpy(mssg, &buf[4], 100);
 
-	// printf("MSSG: %s\n",mssg);
 	pthread_mutex_lock(&recv_buff_lock);
 
 	strcpy(recv_buff_table[size_recv_buf].buff, mssg);
@@ -98,7 +99,6 @@ void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 	strcat(ack, num);
 	ack[4] = '\0';
 	sendto(sockfd, ack, strlen(ack), 0, cliaddr, clilen);
-	// printf("%s sent\n",ack);
 	
 	recv_mssg_id_table[size_recv_id].id = id;
 	size_recv_id++;
@@ -109,17 +109,20 @@ void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 
 void handleACKMsgRecv(char *buf){
 
-	printf("<%s>\n",buf);
-
 	char num[4] = {buf[1], buf[2], buf[3], '\0'};
 	int id = atoi(num);
 
+	// printf("<%s, %d>\n",buf, id);
+
 	for(int i=0; i<size_unack; i++){
 		if(unack_mssg_table[i].id == id){
-			for(int j=i; j<size_unack-1; j++){
+
+			pthread_mutex_lock(&unack_lock);
+			for(int j=i; j<size_unack - 1; j++){
 				unack_mssg_table[j] = unack_mssg_table[j+1];
 			}
 			size_unack--;
+			pthread_mutex_unlock(&unack_lock);
 		}
 	}
 	return;
@@ -158,6 +161,7 @@ int r_socket(int domain, int type, int protocol){
 		srand(time(0));
 
 		pthread_mutex_init(&recv_buff_lock, NULL);
+		pthread_mutex_init(&unack_lock, NULL);
 
 		pthread_t tid;
 		pthread_create(&tid, NULL, runner, (void *)NULL);
@@ -201,14 +205,18 @@ int r_sendto(int sockfd, const void *buff, size_t len, int flags, const struct s
 	if(n<4)
 		return -1;
 
+	pthread_mutex_lock(&unack_lock);
+
 	time(&(unack_mssg_table[size_unack].sent_time));
 	unack_mssg_table[size_unack].dest_addr = *dest_addr;
 	unack_mssg_table[size_unack].id = id;
 	strcpy(unack_mssg_table[size_unack].mssg, buf);
 	unack_mssg_table[size_unack].flags = flags;
+	size_unack++;
+
+	pthread_mutex_unlock(&unack_lock);
 
 	id++;
-	size_unack++;
 
 	return 0;
 }
@@ -277,8 +285,6 @@ int r_close(int sockfd){
 
 
 int dropMessage(float p){
-	
-
 	float n = (float)rand() / RAND_MAX;
 
 	if(n<p)
