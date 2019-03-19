@@ -29,14 +29,15 @@ int main() {
     char c;
 
     while(1){
+        fflush(stdout);
         len = sizeof(cliaddr);
         r_recvfrom(sockfd, &c, 1, 0, (struct sockaddr *)&cliaddr, &len);
-        printf("%c", c);
+        printf("(%c)", c);
 
-        if(c=='\0'){
-            printf("\n\n");
-            break;
-        }
+        // if(c=='\0'){
+        //     printf("\n\n");
+        //     break;
+        // }
     }
 
     printf("Over\n");

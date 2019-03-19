@@ -12,6 +12,8 @@ int count = 1;
 
 int sockfd;
 
+pthread_mutex_t recv_buff_lock;
+
 
 void handleRetransmit(){
 	time_t t;
@@ -61,6 +63,9 @@ void handleReceive(){
 
 void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 	int i;
+
+	printf("<%s>\n",buf);
+
 	char num[4] = {buf[1], buf[2], buf[3], '\0'};
 	int id = atoi(num);
 	for(i=0; i<size_recv_id; i++){
@@ -77,9 +82,15 @@ void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 	char mssg[100];
 	memset(mssg, NULL, strlen(mssg));
 	memcpy(mssg, &buf[4], 100);
+
 	// printf("MSSG: %s\n",mssg);
+	pthread_mutex_lock(&recv_buff_lock);
+
 	strcpy(recv_buff_table[size_recv_buf].buff, mssg);
 	recv_buff_table[size_recv_buf].src_addr = *cliaddr;
+	size_recv_buf++;
+
+	pthread_mutex_unlock(&recv_buff_lock);
 
 	char ack[5];
 	ack[0] = 'A';
@@ -90,15 +101,16 @@ void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 	// printf("%s sent\n",ack);
 	
 	recv_mssg_id_table[size_recv_id].id = id;
-
 	size_recv_id++;
-	size_recv_buf++;
 
 	return;
 }
 
 
 void handleACKMsgRecv(char *buf){
+
+	printf("<%s>\n",buf);
+
 	char num[4] = {buf[1], buf[2], buf[3], '\0'};
 	int id = atoi(num);
 
@@ -143,6 +155,10 @@ int r_socket(int domain, int type, int protocol){
 	if(type == SOCK_MRP){
 		sockfd = socket(domain, SOCK_DGRAM, protocol);
 
+		srand(time(0));
+
+		pthread_mutex_init(&recv_buff_lock, NULL);
+
 		pthread_t tid;
 		pthread_create(&tid, NULL, runner, (void *)NULL);
 
@@ -178,6 +194,7 @@ int r_sendto(int sockfd, const void *buff, size_t len, int flags, const struct s
 	strcat(mssg, "M");
 	strcat(mssg, num);
 	strcat(mssg, buf);
+
 	// printf("%s, %s\n",buf, mssg);
 	int n = sendto(sockfd, mssg, len+4, flags, dest_addr, addrlen);
 
@@ -198,30 +215,42 @@ int r_sendto(int sockfd, const void *buff, size_t len, int flags, const struct s
 
 
 int r_recvfrom(int sockfd, char *buff, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen){
-	while(size_recv_buf == 0) sleep(0.5);
+	while(size_recv_buf < 1) sleep(0.5);
 
 	if(len < strlen(recv_buff_table[0].buff)){
+		pthread_mutex_lock(&recv_buff_lock);
+
 		for(int i=0; i<len; i++){
 			buff[i] = recv_buff_table[0].buff[i];
 		}
 		*src_addr = recv_buff_table[0].src_addr;
 		*addrlen = sizeof(*src_addr);
 
-		for(int i=0; i<size_recv_buf-1; i++)
+		for(int i=0; i<size_recv_buf - 1; i++)
 			recv_buff_table[i] = recv_buff_table[i+1];
 
 		size_recv_buf--;
+		pthread_mutex_unlock(&recv_buff_lock);
+
 		return (int)len;
 	}
+
+
 	else{
+		pthread_mutex_lock(&recv_buff_lock);
+
+		// printf("SIZE: %d, RECV BUFF: %s\n",size_recv_buf, recv_buff_table[0].buff);
+
 		strcpy(buff, recv_buff_table[0].buff);
 		*src_addr = recv_buff_table[0].src_addr;
 		*addrlen = sizeof(*src_addr);
 
-		for(int i=0; i<size_recv_buf-1; i++)
+		for(int i=0; i<size_recv_buf - 1; i++)
 			recv_buff_table[i] = recv_buff_table[i+1];
 
 		size_recv_buf--;
+		pthread_mutex_unlock(&recv_buff_lock);
+
 		return (int)strlen(recv_buff_table[0].buff);
 	}
 	return -1;
@@ -248,7 +277,7 @@ int r_close(int sockfd){
 
 
 int dropMessage(float p){
-	srand(time(0));
+	
 
 	float n = (float)rand() / RAND_MAX;
 
