@@ -1,6 +1,7 @@
 #include "rsocket.h"
 
-recv_buff *recv_buff_table;
+// recv_buff *recv_buff_table;
+recv_buff recv_buff_table;
 unack_mssg *unack_mssg_table;
 recv_mssg_id *recv_mssg_id_table;
 
@@ -87,9 +88,13 @@ void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 
 	pthread_mutex_lock(&recv_buff_lock);
 
-	strcpy(recv_buff_table[size_recv_buf].buff, mssg);
-	recv_buff_table[size_recv_buf].src_addr = *cliaddr;
-	size_recv_buf++;
+	// strcpy(recv_buff_table[size_recv_buf].buff, mssg);
+	// recv_buff_table[size_recv_buf].src_addr = *cliaddr;
+	// size_recv_buf++;
+	int rear = recv_buff_table.rear;
+	strcpy(recv_buff_table.mssg[rear].buff, mssg);
+	recv_buff_table.mssg[rear].src_addr = *cliaddr;
+	recv_buff_table.rear++;
 
 	pthread_mutex_unlock(&recv_buff_lock);
 
@@ -166,9 +171,12 @@ int r_socket(int domain, int type, int protocol){
 		pthread_t tid;
 		pthread_create(&tid, NULL, runner, (void *)NULL);
 
-		recv_buff_table = (recv_buff *)malloc(100*sizeof(recv_buff));
-		unack_mssg_table = (unack_mssg *)malloc(100*sizeof(unack_mssg));
-		recv_mssg_id_table = (recv_mssg_id *)malloc(100*sizeof(recv_mssg_id));
+		// recv_buff_table = (recv_buff *)malloc(MAX_SIZE*sizeof(recv_buff));
+		recv_buff_table.mssg = (recv_mssg *)malloc(MAX_SIZE*sizeof(recv_mssg));
+		recv_buff_table.front = 0;
+		recv_buff_table.rear = 0;
+		unack_mssg_table = (unack_mssg *)malloc(MAX_SIZE*sizeof(unack_mssg));
+		recv_mssg_id_table = (recv_mssg_id *)malloc(MAX_SIZE*sizeof(recv_mssg_id));
 
 		return sockfd;
 	}
@@ -223,21 +231,23 @@ int r_sendto(int sockfd, const void *buff, size_t len, int flags, const struct s
 
 
 int r_recvfrom(int sockfd, char *buff, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen){
-	while(size_recv_buf < 1) sleep(0.5);
+	while(recv_buff_table.front == recv_buff_table.rear) sleep(0.5);
 
-	if(len < strlen(recv_buff_table[0].buff)){
+	int front = recv_buff_table.front;
+	if(len < strlen(recv_buff_table.mssg[front].buff)){
 		pthread_mutex_lock(&recv_buff_lock);
 
-		for(int i=0; i<len; i++){
-			buff[i] = recv_buff_table[0].buff[i];
-		}
-		*src_addr = recv_buff_table[0].src_addr;
+		for(int i=0; i<len; i++)
+			buff[i] = recv_buff_table.mssg[front].buff[i];
+		*src_addr = recv_buff_table.mssg[front].src_addr;
 		*addrlen = sizeof(*src_addr);
 
-		for(int i=0; i<size_recv_buf - 1; i++)
-			recv_buff_table[i] = recv_buff_table[i+1];
+		recv_buff_table.front++;
 
-		size_recv_buf--;
+		// for(int i=0; i<size_recv_buf - 1; i++)
+		// 	recv_buff_table[i] = recv_buff_table[i+1];
+
+		// size_recv_buf--;
 		pthread_mutex_unlock(&recv_buff_lock);
 
 		return (int)len;
@@ -248,18 +258,18 @@ int r_recvfrom(int sockfd, char *buff, size_t len, int flags, struct sockaddr *s
 		pthread_mutex_lock(&recv_buff_lock);
 
 		// printf("SIZE: %d, RECV BUFF: %s\n",size_recv_buf, recv_buff_table[0].buff);
-
-		strcpy(buff, recv_buff_table[0].buff);
-		*src_addr = recv_buff_table[0].src_addr;
+		strcpy(buff, recv_buff_table.mssg[front].buff);
+		*src_addr = recv_buff_table.mssg[front].src_addr;
 		*addrlen = sizeof(*src_addr);
 
-		for(int i=0; i<size_recv_buf - 1; i++)
-			recv_buff_table[i] = recv_buff_table[i+1];
+		// for(int i=0; i<size_recv_buf - 1; i++)
+		// 	recv_buff_table[i] = recv_buff_table[i+1];
 
-		size_recv_buf--;
+		// size_recv_buf--;
+		recv_buff_table.front++;
 		pthread_mutex_unlock(&recv_buff_lock);
 
-		return (int)strlen(recv_buff_table[0].buff);
+		return (int)strlen(recv_buff_table.mssg[front].buff);
 	}
 	return -1;
 
@@ -271,7 +281,7 @@ int r_close(int sockfd){
 		sleep(0.5);
 	}
 
-	free(recv_buff_table);
+	free(recv_buff_table.mssg);
 	free(unack_mssg_table);
 	free(recv_mssg_id_table);
 

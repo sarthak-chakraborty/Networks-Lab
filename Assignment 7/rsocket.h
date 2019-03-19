@@ -17,6 +17,7 @@
 #define T_USEC 0
 #define PROB 0.3
 #define SOCK_MRP 100
+#define MAX_SIZE 100
 
 
 int r_socket(int, int, int);
@@ -31,6 +32,12 @@ int dropMessage(float);
 typedef struct{
 	char buff[100];
 	struct sockaddr src_addr;
+}recv_mssg;
+
+typedef struct{
+	int front;
+	int rear;
+	recv_mssg *mssg;
 }recv_buff;
 
 
