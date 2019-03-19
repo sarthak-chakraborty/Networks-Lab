@@ -20,7 +20,7 @@ int main() {
     socklen_t len;
 
     char buff[500];
-    printf("Enter a long string: ");
+    printf("Enter a long string(25 to 100 length): ");
     gets(buff);
 
 
@@ -30,9 +30,11 @@ int main() {
         r_sendto(sockfd, (const char *)&(buff[i]), 1, 0, (const struct sockaddr *)&servaddr, sizeof(servaddr));
     }
 
-    printf("Hello message sent from client\n"); 
+    printf("\nHello message sent from client\n"); 
 
            
-    r_close(sockfd); 
+    int a = r_close(sockfd);
+
+    printf("\nAverage No. of Transmissions: %f\n", (float)a/strlen(buff));
     return 0; 
 } 

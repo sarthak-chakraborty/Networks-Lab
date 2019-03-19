@@ -15,7 +15,7 @@
 
 #define T_SEC 2
 #define T_USEC 0
-#define PROB 0.3
+#define PROB 0.35
 #define SOCK_MRP 100
 #define MAX_SIZE 100
 

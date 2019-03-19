@@ -1,16 +1,13 @@
 #include "rsocket.h"
 
-// recv_buff *recv_buff_table;
 recv_buff recv_buff_table;
 unack_mssg *unack_mssg_table;
 recv_mssg_id *recv_mssg_id_table;
 
-int id = 1;
+int id;
 int size_unack = 0;
 int size_recv_id = 0;
-int size_recv_buf = 0;
-int count = 1;
-
+int count_transmission;
 int sockfd;
 
 pthread_mutex_t recv_buff_lock;
@@ -32,6 +29,8 @@ void handleRetransmit(){
 			strcat(mssg, num);
 			strcat(mssg, unack_mssg_table[i].mssg);
 			sendto(sockfd, mssg, strlen(mssg), unack_mssg_table[i].flags, &unack_mssg_table[i].dest_addr, sizeof(unack_mssg_table[i].dest_addr));
+			count_transmission++;
+			// printf("%d\n",count_transmission);
 		}
 	}
 	return;
@@ -51,7 +50,6 @@ void handleReceive(){
 		return;
 	}
 	buf[n] = '\0';
-	// printf("%d, %s\n",n, buf);
 
 	if(dropMessage(PROB) == 0){
 		if(buf[0] == 'M')
@@ -65,9 +63,6 @@ void handleReceive(){
 
 void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 	int i;
-
-	// printf("<%s>\n",buf);
-
 	char num[4] = {buf[1], buf[2], buf[3], '\0'};
 	int id = atoi(num);
 	for(i=0; i<size_recv_id; i++){
@@ -88,9 +83,6 @@ void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 
 	pthread_mutex_lock(&recv_buff_lock);
 
-	// strcpy(recv_buff_table[size_recv_buf].buff, mssg);
-	// recv_buff_table[size_recv_buf].src_addr = *cliaddr;
-	// size_recv_buf++;
 	int rear = recv_buff_table.rear;
 	strcpy(recv_buff_table.mssg[rear].buff, mssg);
 	recv_buff_table.mssg[rear].src_addr = *cliaddr;
@@ -116,8 +108,6 @@ void handleACKMsgRecv(char *buf){
 
 	char num[4] = {buf[1], buf[2], buf[3], '\0'};
 	int id = atoi(num);
-
-	// printf("<%s, %d>\n",buf, id);
 
 	for(int i=0; i<size_unack; i++){
 		if(unack_mssg_table[i].id == id){
@@ -171,7 +161,8 @@ int r_socket(int domain, int type, int protocol){
 		pthread_t tid;
 		pthread_create(&tid, NULL, runner, (void *)NULL);
 
-		// recv_buff_table = (recv_buff *)malloc(MAX_SIZE*sizeof(recv_buff));
+		id = 0;
+		count_transmission = 0;
 		recv_buff_table.mssg = (recv_mssg *)malloc(MAX_SIZE*sizeof(recv_mssg));
 		recv_buff_table.front = 0;
 		recv_buff_table.rear = 0;
@@ -207,8 +198,9 @@ int r_sendto(int sockfd, const void *buff, size_t len, int flags, const struct s
 	strcat(mssg, num);
 	strcat(mssg, buf);
 
-	// printf("%s, %s\n",buf, mssg);
 	int n = sendto(sockfd, mssg, len+4, flags, dest_addr, addrlen);
+	count_transmission++;
+	// printf("%d\n",count_transmission);
 
 	if(n<4)
 		return -1;
@@ -243,11 +235,6 @@ int r_recvfrom(int sockfd, char *buff, size_t len, int flags, struct sockaddr *s
 		*addrlen = sizeof(*src_addr);
 
 		recv_buff_table.front++;
-
-		// for(int i=0; i<size_recv_buf - 1; i++)
-		// 	recv_buff_table[i] = recv_buff_table[i+1];
-
-		// size_recv_buf--;
 		pthread_mutex_unlock(&recv_buff_lock);
 
 		return (int)len;
@@ -257,15 +244,10 @@ int r_recvfrom(int sockfd, char *buff, size_t len, int flags, struct sockaddr *s
 	else{
 		pthread_mutex_lock(&recv_buff_lock);
 
-		// printf("SIZE: %d, RECV BUFF: %s\n",size_recv_buf, recv_buff_table[0].buff);
 		strcpy(buff, recv_buff_table.mssg[front].buff);
 		*src_addr = recv_buff_table.mssg[front].src_addr;
 		*addrlen = sizeof(*src_addr);
 
-		// for(int i=0; i<size_recv_buf - 1; i++)
-		// 	recv_buff_table[i] = recv_buff_table[i+1];
-
-		// size_recv_buf--;
 		recv_buff_table.front++;
 		pthread_mutex_unlock(&recv_buff_lock);
 
@@ -286,8 +268,8 @@ int r_close(int sockfd){
 	free(recv_mssg_id_table);
 
 	int n = close(sockfd);
-	if(n>0)
-		return 0;
+	if(n==0)
+		return count_transmission;
 
 	return -1;
 }

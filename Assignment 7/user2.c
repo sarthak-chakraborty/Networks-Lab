@@ -32,12 +32,7 @@ int main() {
         fflush(stdout);
         len = sizeof(cliaddr);
         r_recvfrom(sockfd, &c, 1, 0, (struct sockaddr *)&cliaddr, &len);
-        printf("(%c)", c);
-
-        // if(c=='\0'){
-        //     printf("\n\n");
-        //     break;
-        // }
+        printf("%c", c);
     }
 
     printf("Over\n");
