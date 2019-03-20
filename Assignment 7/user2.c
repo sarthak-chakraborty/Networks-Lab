@@ -21,7 +21,7 @@ int main() {
     user2addr.sin_addr.s_addr = INADDR_ANY; 
     user2addr.sin_port = htons(50089); 
       
-    if(r_bind(sockfd, (const struct sockaddr *)&user2addr, sizeof(user2addr)) == 0 ){
+    if(r_bind(sockfd, (const struct sockaddr *)&user2addr, sizeof(user2addr)) == -1 ){
         printf("bind failed\n"); 
         exit(1); 
     } 

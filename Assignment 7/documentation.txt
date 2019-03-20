@@ -1,13 +1,114 @@
-String: My name is Sarthak Chakraborty.
-Length: 31
+NAME: Sarthak Chakraborty
+ROLL: 16CS30044
 
-p=0.05, Avg=1.129032
-p=0.10, Avg=1.354839
-p=0.15, Avg=1.548387
-p=0.20, Avg=1.645161
-p=0.25, Avg=1.709677
-p=0.30, Avg=2.016129
-p=0.35, Avg=2.693548
-p=0.40, Avg=2.580645
-p=0.45, Avg=2.806452
-p=0.50, Avg=3.354839
+
+
+######################################################################
+
+
+
+Average Number of Transmission of a string vs. Drop Probability
+=================================================================
+
+For each value of Drop Probability, the same string was used and the total number of transmission needed to send the message successfully was computed. Average Number of transmissions for each character was then calculated by dividing the total transimissions by the number of characters in the string. The table below shows the comparison.
+
+[NOTE: For each value of p, the algorithm was run 5 times and then an average was taken for these runs to determine the average number of transmissions. Avergae of 5 results was taken to counter the randomness in the result and to give a better trend.]
+
+
+STRING: "My name is Sarthak Chakraborty."
+LENGTH: 31
+ +---------------------+----------------------------------+
+ |  Drop Probability   |    Average No. of Transmissions  |
+ +---------------------+----------------------------------+
+ |      0.05           |             1.154838             | 
+ |      0.10           |             1.245161             |
+ |      0.15           |             1.438710             |
+ |      0.20           |             1.651613             |
+ |      0.25           |             1.883871             |
+ |      0.30           |             1.902566             |
+ |      0.35           |             2.403226             |
+ |      0.40           |             2.929032             |
+ |      0.45           |             3.245161             |
+ |      0.50           |             3.877419             |
+ +---------------------+----------------------------------+
+
+Expected number of transmission required for each character is 1/(1-p)^2, where p=Drop Probability. Thus, the results comply to the theoretical estimate.
+
+
+
+########################################################################
+
+
+
+FORMAT OF MESSAGE:
+======================
+
+The raw message that the user has sent using the r_sendto() call is not used in the transmission. To ensure reliability, a header of specific length is appended to the message. 
+
+APPLICATION MESSAGE:
+---------------------
+An ID is used to denote which character has been sent already. ID starts from 1. The header used for application message is 4 bits long. First bit of the header is 'M' which will differentiate the application message with the acknowledgements. The next 3 bits refer to the ID of the message. So the first message sent is "M001<user message>". Hence, general format of the application message is 
+"Mxxx<message>", where xxx=ID of the message, <message>=actual message to be transmitted by the sender.
+
+ACKNOWLEDGEMENT:
+-----------------
+When the message is received by the receiver, it sends an acknowledgement message. The format of the acknowledgement is similar to the header of the Application message. The message is of 4 bits where the leading bit is 'A', which refers to the message being an ACK message. The next three bits of the message is the ID of the message that the receiver is acknowledging. For example, if the receiver is is acknowledging the message "M005<message>", the format of the ACK is "A005". Hence, general format of the ACK message is "Axxx", where xxx=ID of the message being ACKed.
+
+
+
+########################################################################
+
+
+
+DATA STRUCTURES USED:
+=======================
+
+
+UNACKED MESSAGE BUFFER:
+------------------------
+typedef struct{
+	time_t sent_time;
+	struct sockaddr dest_addr;
+	int id;
+	int flags;
+	char mssg[100];
+}unack_mssg;
+
+Here, an "array" is used for the unacked message buffer, where each row has the fields shown in the structure definition. The array is dynamically located and stores the message that are sent from the sender side but are not yet acknowledged by the receiver. The description of the fields are as below:
+
+sent_time:- 	Stores the time when the message is sent or retransmitted. Used to find the timeout.
+dest_addr:- 	Stores the destination address where the message was sent. Used in retransmission.
+id:- 			Stores the ID of the message. Used in locating the message when an ACK is received.
+flags:- 		Stores the flags used by the sender during transmission. Used in retransmission.
+mssg:- 			Stores the message to be sent to the destination address.
+
+
+RECEIVE MESSGE BUFFER:
+-----------------------
+typedef struct{
+	char buff[100];
+	struct sockaddr src_addr;
+}recv_mssg;
+
+typedef struct{
+	int front;
+	int rear;
+	recv_mssg *mssg;
+}recv_buff;
+
+A "Circular queue" is implemented for the receive message buffer, since we need to pick the first element at every receive call and add messages at the end when it is received in thread X. Circular queue (recv_buff) has a front and a rear pointer and the contents are a dynamically allocated array of a structure with the fields shown in recv_mssg. The fields description are as below:
+
+front:-			Index of the front element of the circular queue.
+rear:-			Index of the rear element of the circular queue.
+mssg:-			Dynamically allocated array of type "recv_mssg", which contains the details in the receive buffer.
+buff:-			Stores the actual contents of the message  excluding the header received by the receiver.
+src_addr:-		Stores the source address from where the message has been sent. Used in knowing the address of the sender.
+
+
+RECEIVE MESSAGE ID:
+--------------------
+A "Hash" array, or a direct addressing scheme is used to find the ID of the message received. The array is dynamically allocated having the same size as the maximum number of messages that the protocol can support to send and is initialized to 0. Whenever a message is received, the value in the index corresponding to the ID of the messaged is updated to 1. Hence, to check whether a particular message has already been ACKed or not, it just check whether the corresponding index is 1 or not in O(1). Used to account for duplicate message received.
+
+
+
+####################################################################################################################

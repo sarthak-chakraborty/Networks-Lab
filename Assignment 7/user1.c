@@ -17,7 +17,7 @@ int main() {
     user1addr.sin_port = htons(50088); 
     user1addr.sin_addr.s_addr = INADDR_ANY;
 
-    if(r_bind(sockfd, (const struct sockaddr *)&user1addr, sizeof(user1addr)) == 0){
+    if(r_bind(sockfd, (const struct sockaddr *)&user1addr, sizeof(user1addr)) == -1){
         printf("Binding failed\n");
         exit(0);
     }

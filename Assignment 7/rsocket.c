@@ -2,7 +2,6 @@
 
 recv_buff recv_buff_table;
 unack_mssg *unack_mssg_table;
-// recv_mssg_id *recv_mssg_id_table;
 int *recv_mssg_id_table;
 
 int id;
@@ -69,18 +68,18 @@ void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 	int i;
 	char num[4] = {buf[1], buf[2], buf[3], '\0'};
 	int id = atoi(num);
-	// for(i=0; i<size_recv_id; i++){
-		if(recv_mssg_id_table[id-1] == 1){
-			char ack[5];
-			ack[0] = 'A';
-			ack[1] = '\0';
-			strcat(ack, num);
-			ack[4] = '\0';
-			sendto(sockfd, ack, strlen(ack), 0, cliaddr, clilen);
 
-			return;
-		}
-	// }
+	if(recv_mssg_id_table[id-1] == 1){
+		char ack[5];
+		ack[0] = 'A';
+		ack[1] = '\0';
+		strcat(ack, num);
+		ack[4] = '\0';
+		sendto(sockfd, ack, strlen(ack), 0, cliaddr, clilen);
+
+		return;
+	}
+
 	char mssg[100];
 	memset(mssg, 0, strlen(mssg));
 	memcpy(mssg, &buf[4], 100);
@@ -101,8 +100,6 @@ void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 	ack[4] = '\0';
 	sendto(sockfd, ack, strlen(ack), 0, cliaddr, clilen);
 	
-	// recv_mssg_id_table[size_recv_id].id = id;
-	// size_recv_id++;
 	recv_mssg_id_table[id-1] = 1;
 
 	return;
@@ -172,7 +169,6 @@ int r_socket(int domain, int type, int protocol){
 		recv_buff_table.front = 0;
 		recv_buff_table.rear = 0;
 		unack_mssg_table = (unack_mssg *)malloc(MAX_SIZE*sizeof(unack_mssg));
-		// recv_mssg_id_table = (recv_mssg_id *)malloc(MAX_SIZE*sizeof(recv_mssg_id));
 		recv_mssg_id_table = (int *)malloc(MAX_SIZE*sizeof(int));
 
 		for(int i=0; i<MAX_SIZE; i++)
@@ -185,11 +181,7 @@ int r_socket(int domain, int type, int protocol){
 
 
 int r_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen){
-	int n = bind(sockfd, addr, addrlen);
-	if(n>0)
-		return 0;
-
-	return -1;
+	return bind(sockfd, addr, addrlen);
 }
 
 

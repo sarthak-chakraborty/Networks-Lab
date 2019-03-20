@@ -15,7 +15,7 @@
 
 #define T_SEC 2
 #define T_USEC 0
-#define PROB 0.3
+#define PROB 0.2
 #define SOCK_MRP 100
 #define MAX_SIZE 100
 
@@ -48,11 +48,6 @@ typedef struct{
 	int flags;
 	char mssg[100];
 }unack_mssg;
-
-
-// typedef struct{
-// 	int id;
-// }recv_mssg_id;
 
 
 #endif
