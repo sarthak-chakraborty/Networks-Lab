@@ -15,7 +15,7 @@
 
 #define T_SEC 2
 #define T_USEC 0
-#define PROB 0.35
+#define PROB 0.3
 #define SOCK_MRP 100
 #define MAX_SIZE 100
 
@@ -50,9 +50,9 @@ typedef struct{
 }unack_mssg;
 
 
-typedef struct{
-	int id;
-}recv_mssg_id;
+// typedef struct{
+// 	int id;
+// }recv_mssg_id;
 
 
 #endif

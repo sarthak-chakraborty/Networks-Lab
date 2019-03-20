@@ -2,7 +2,8 @@
 
 recv_buff recv_buff_table;
 unack_mssg *unack_mssg_table;
-recv_mssg_id *recv_mssg_id_table;
+// recv_mssg_id *recv_mssg_id_table;
+int *recv_mssg_id_table;
 
 int id;
 int size_unack = 0;
@@ -23,14 +24,17 @@ void handleRetransmit(){
 			char num[4];
 			sprintf(num, "%03d", unack_mssg_table[i].id);
 			char mssg[104];
-			memset(mssg, NULL, sizeof(mssg));
+			memset(mssg, 0, sizeof(mssg));
 
 			strcat(mssg, "M");
 			strcat(mssg, num);
 			strcat(mssg, unack_mssg_table[i].mssg);
 			sendto(sockfd, mssg, strlen(mssg), unack_mssg_table[i].flags, &unack_mssg_table[i].dest_addr, sizeof(unack_mssg_table[i].dest_addr));
 			count_transmission++;
-			// printf("%d\n",count_transmission);
+
+			pthread_mutex_lock(&unack_lock);
+			unack_mssg_table[i].sent_time = t;
+			pthread_mutex_unlock(&unack_lock);
 		}
 	}
 	return;
@@ -43,7 +47,7 @@ void handleReceive(){
 	socklen_t clilen;
 
 	clilen = sizeof(cliaddr);
-	memset(buf, NULL, sizeof(buf));
+	memset(buf, 0, sizeof(buf));
 	int n = recvfrom(sockfd, buf, 104, 0, (struct sockaddr *)&cliaddr, &clilen);
 	if(n<0){
 		perror("Error detected\n");
@@ -65,8 +69,8 @@ void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 	int i;
 	char num[4] = {buf[1], buf[2], buf[3], '\0'};
 	int id = atoi(num);
-	for(i=0; i<size_recv_id; i++){
-		if(recv_mssg_id_table[i].id == id){
+	// for(i=0; i<size_recv_id; i++){
+		if(recv_mssg_id_table[id-1] == 1){
 			char ack[5];
 			ack[0] = 'A';
 			ack[1] = '\0';
@@ -76,9 +80,9 @@ void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 
 			return;
 		}
-	}
+	// }
 	char mssg[100];
-	memset(mssg, NULL, strlen(mssg));
+	memset(mssg, 0, strlen(mssg));
 	memcpy(mssg, &buf[4], 100);
 
 	pthread_mutex_lock(&recv_buff_lock);
@@ -97,8 +101,9 @@ void handleAppMsgRecv(char *buf, struct sockaddr *cliaddr, socklen_t clilen){
 	ack[4] = '\0';
 	sendto(sockfd, ack, strlen(ack), 0, cliaddr, clilen);
 	
-	recv_mssg_id_table[size_recv_id].id = id;
-	size_recv_id++;
+	// recv_mssg_id_table[size_recv_id].id = id;
+	// size_recv_id++;
+	recv_mssg_id_table[id-1] = 1;
 
 	return;
 }
@@ -167,7 +172,11 @@ int r_socket(int domain, int type, int protocol){
 		recv_buff_table.front = 0;
 		recv_buff_table.rear = 0;
 		unack_mssg_table = (unack_mssg *)malloc(MAX_SIZE*sizeof(unack_mssg));
-		recv_mssg_id_table = (recv_mssg_id *)malloc(MAX_SIZE*sizeof(recv_mssg_id));
+		// recv_mssg_id_table = (recv_mssg_id *)malloc(MAX_SIZE*sizeof(recv_mssg_id));
+		recv_mssg_id_table = (int *)malloc(MAX_SIZE*sizeof(int));
+
+		for(int i=0; i<MAX_SIZE; i++)
+			recv_mssg_id_table[i] = 0;
 
 		return sockfd;
 	}
@@ -188,11 +197,11 @@ int r_sendto(int sockfd, const void *buff, size_t len, int flags, const struct s
 	char num[4];
 	sprintf(num, "%03d", id);
 	char mssg[104];
-	memset(mssg, NULL, sizeof(mssg));
+	memset(mssg, 0, sizeof(mssg));
 
 	char buf[100];
-	memset(buf, NULL, sizeof(buf));
-	memcpy(buf, &buff[0], len);
+	memset(buf, 0, sizeof(buf));
+	memcpy(buf, (&buff)[0], len);
 
 	strcat(mssg, "M");
 	strcat(mssg, num);
@@ -200,7 +209,6 @@ int r_sendto(int sockfd, const void *buff, size_t len, int flags, const struct s
 
 	int n = sendto(sockfd, mssg, len+4, flags, dest_addr, addrlen);
 	count_transmission++;
-	// printf("%d\n",count_transmission);
 
 	if(n<4)
 		return -1;
@@ -260,7 +268,7 @@ int r_recvfrom(int sockfd, char *buff, size_t len, int flags, struct sockaddr *s
 
 int r_close(int sockfd){
 	while(size_unack != 0){
-		sleep(0.5);
+		sleep(1);
 	}
 
 	free(recv_buff_table.mssg);

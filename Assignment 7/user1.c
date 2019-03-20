@@ -2,7 +2,7 @@
   
 int main() { 
     int sockfd, i; 
-    struct sockaddr_in servaddr; 
+    struct sockaddr_in user1addr, user2addr; 
   
     sockfd = r_socket(AF_INET, SOCK_MRP, 0);
     if(sockfd < 0){ 
@@ -10,11 +10,21 @@ int main() {
         exit(1); 
     } 
   
-    memset(&servaddr, 0, sizeof(servaddr)); 
+    memset(&user1addr, 0, sizeof(user1addr));
+    memset(&user2addr, 0, sizeof(user2addr)); 
       
-    servaddr.sin_family = AF_INET; 
-    servaddr.sin_port = htons(50088); 
-    servaddr.sin_addr.s_addr = INADDR_ANY; 
+    user1addr.sin_family = AF_INET; 
+    user1addr.sin_port = htons(50088); 
+    user1addr.sin_addr.s_addr = INADDR_ANY;
+
+    if(r_bind(sockfd, (const struct sockaddr *)&user1addr, sizeof(user1addr)) == 0){
+        printf("Binding failed\n");
+        exit(0);
+    }
+
+    user2addr.sin_family = AF_INET; 
+    user2addr.sin_port = htons(50089); 
+    user2addr.sin_addr.s_addr = INADDR_ANY;
       
     int n;
     socklen_t len;
@@ -27,7 +37,7 @@ int main() {
     printf("User1....\n");
 
     for(i=0; i<strlen(buff)+1; i++){
-        r_sendto(sockfd, (const char *)&(buff[i]), 1, 0, (const struct sockaddr *)&servaddr, sizeof(servaddr));
+        r_sendto(sockfd, (const char *)&(buff[i]), 1, 0, (const struct sockaddr *)&user2addr, sizeof(user2addr));
     }
 
     printf("\nHello message sent from client\n"); 
