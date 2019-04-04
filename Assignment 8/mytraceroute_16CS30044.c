@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/select.h>
 #include <fcntl.h>
 #include <arpa/inet.h>
@@ -19,8 +20,7 @@
 
 
 #define BUFFER 100
-
-
+#define MAX 100
 
 
 unsigned short ip_checksum(unsigned short *buffer, int size){
@@ -84,21 +84,20 @@ int main(int argc, char *argv[]){
 	}
 
 	adr = (struct in_addr **)ip->h_addr_list;
-	// printf("%s\n",inet_ntoa(*adr[0]));
 
 
 	int icmp_fd, udp_fd, count, ttl = 1;
-	struct sockaddr_in udp_addr, icmp_addr, dest_addr;
+	struct sockaddr_in udp_addr, icmp_addr, dest_addr, addr;
 	int socklen;
 	struct iphdr *ip_header;
 	struct udphdr *udp_header;
 	struct iphdr *recv_ip_header;
 	struct icmphdr *icmp_header;
-	char buff[BUFFER];
-	char mssg[BUFFER];
+	char buff[52 + sizeof(struct udphdr) + sizeof(struct iphdr)];
+	char mssg[MAX];
 	fd_set rdfs;
 	struct timeval tv;
-	time_t t1, t2;
+	struct timeval t1, t2;
 
 
 	ip_header = (struct iphdr *)buff;
@@ -106,6 +105,7 @@ int main(int argc, char *argv[]){
     recv_ip_header = (struct iphdr *)mssg;
     icmp_header = (struct icmphdr *)(mssg + sizeof(struct iphdr));
     memset(buff, 0, BUFFER);
+
 
 
 	if((icmp_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0){
@@ -127,11 +127,15 @@ int main(int argc, char *argv[]){
 	icmp_addr.sin_port = htons(6666);
 
 	dest_addr.sin_family = AF_INET;
-	dest_addr.sin_addr.s_addr = inet_ntoa(*adr[0]);
+	dest_addr.sin_addr.s_addr = inet_addr(inet_ntoa(*adr[0]));
 	dest_addr.sin_port = htons(32164);
 
 
 	if(setsockopt(udp_fd, IPPROTO_IP, IP_HDRINCL, &(int){1}, sizeof(int)) < 0){
+		printf("[Error] Setsockopt failed\n");
+		exit(0);
+	}
+	if(setsockopt(icmp_fd, IPPROTO_IP, IP_HDRINCL, &(int){1}, sizeof(int)) < 0){
 		printf("[Error] Setsockopt failed\n");
 		exit(0);
 	}
@@ -150,28 +154,40 @@ int main(int argc, char *argv[]){
 	printf("Hop_Count(TTL Value)\tIP Address\tResponse_time\n");
 	printf("--------------------\t----------\t-------------\n");
 
+
+	int id=0;
+	ip_header->ihl = 5;
+    ip_header->version = 4;
+    ip_header->tos = 0;
+    ip_header->tot_len = sizeof(buff);
+    ip_header->id = htonl(id);
+    ip_header->frag_off = 0;
+    ip_header->protocol = IPPROTO_IP;
+    ip_header->saddr = udp_addr.sin_addr.s_addr;
+    ip_header->daddr = inet_addr(inet_ntoa(*adr[0]));
+    // ip_header->daddr = dest_addr.sin_addr.s_addr;
+    // ip_header->check = ip_checksum((unsigned short *)buff, ip_header->tot_len >> 1);
+
+
+    udp_header->source = udp_addr.sin_port;
+    udp_header->dest = htons(32164);
+	// udp_header->dest = dest_addr.sin_port;
+	udp_header->len = sizeof(buff) - sizeof(struct iphdr);
+	udp_header->check = udp_checksum((unsigned short *)buff, udp_header->len >> 1);
+
+
 	while(1){
-		ip_header->ihl = 5;
-	    ip_header->version = 4;
-	    ip_header->tos = 0;
-	    ip_header->tot_len = sizeof(struct iphdr) + sizeof(struct udphdr) + sizeof(buff);
-	    ip_header->id = htonl(0);
-	    ip_header->frag_off = 0;
-	    ip_header->ttl = ttl;
-	    ip_header->protocol = 17;    /* TCP. Change to 17 if you want UDP */
-	    ip_header->check = 0;
-	    ip_header->saddr = udp_addr.sin_addr.s_addr;
-	    ip_header->daddr = dest_addr.sin_addr.s_addr;
-	    ip_header->check = ip_checksum((unsigned short *)buff, ip_header->tot_len >> 1);
 
-		udp_header->source = udp_addr.sin_port;
-		udp_header->dest = dest_addr.sin_port;
-		udp_header->len = sizeof(struct udphdr) + sizeof(buff);
-		udp_header->check = udp_checksum((unsigned short *)buff, udp_header->len >> 1);;
+		ip_header->ttl = ttl;
 
+
+		strcpy(sizeof(struct iphdr) + sizeof(struct udphdr) + buff, "Hello");
+
+		// printf("\nSource IP : Source Port :: %s : %d\n", inet_ntoa(udp_addr.sin_addr), ntohs(udp_addr.sin_port));
+		// printf("Dest IP : Dest Port :: %s : %d\n", inet_ntoa(dest_addr.sin_addr), ntohs(dest_addr.sin_port));
 
 		sendto(udp_fd, buff, ip_header->tot_len, 0,  (struct sockaddr *)&dest_addr, sizeof(dest_addr));
-		t1 = time(NULL);
+		gettimeofday(&t1, NULL);
 		
 
 		count = 0;
@@ -187,18 +203,19 @@ int main(int argc, char *argv[]){
 	        	continue;
 	        }
 	        if(FD_ISSET(icmp_fd, &rdfs)){
-	        	memset(mssg, 0, BUFFER);
-				socklen = sizeof(dest_addr);
-				int n = recvfrom(icmp_fd, mssg, BUFFER, 0, (struct sockaddr *)&dest_addr, &socklen);
-				t2 = time(NULL);
+	        	memset(mssg, 0, MAX);
+				socklen = sizeof(addr);
+				int n = recvfrom(icmp_fd, mssg, MAX, 0, (struct sockaddr *)&addr, &socklen);
+				gettimeofday(&t2, NULL);
 				
 				if(icmp_header->type == 11){
-					printf("\t%d\t\t%s\t     %d\n",ttl, (char *)inet_ntoa(*(struct in_addr*)&recv_ip_header->saddr), (t2-t1));
+					printf("\t%d\t\t%s\t     %dms\n",ttl, (char *)inet_ntoa(*(struct in_addr*)&recv_ip_header->saddr), (t2.tv_usec-t1.tv_usec)/1000);
 					ttl++;
+					id++;
 					break;
 				}
 				else if(icmp_header->type == 3){
-					printf("\t%d\t\t%s\t     %d\n",ttl, (char *)inet_ntoa(*(struct in_addr*)&recv_ip_header->saddr), (t2-t1));
+					printf("\t%d\t\t%s\t     %dms\n",ttl, (char *)inet_ntoa(*(struct in_addr*)&recv_ip_header->saddr), (t2.tv_usec-t1.tv_usec)/1000);
 					break;
 				}
 	        }
@@ -207,6 +224,7 @@ int main(int argc, char *argv[]){
 		if(count == 3){
 			printf("\t%d\t\t    *\t\t     *\n",ttl);
 			ttl++;
+			id++;
 		}
 		else if(icmp_header->type == 11) continue;
 		else break;
