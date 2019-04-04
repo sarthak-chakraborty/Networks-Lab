@@ -30,3 +30,7 @@ Implementation of a concurrent server of TCP and UDP like Assignment 3 but in no
 
 ### ASSIGNMENT 7
 A reliable connection over an unreliable UDP socket. A socket MRP is designed which will be make a reliable communication using an underlying unreliable UDP socket. In particular, we have to implement a message-oriented, reliable and exactly-once delivery communication layer.
+
+
+### ASSIGNMENT 8
+Implementation of the `traceroute` call as supported by linux. Given a domain name, find the intermediate hops(L2 and L3 switches) to reach the server and the response time. Raw sockets are used to change the TTL value in the IP header to perform the required operation.
