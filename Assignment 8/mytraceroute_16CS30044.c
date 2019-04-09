@@ -24,23 +24,46 @@
 
 
 /////////////////////////////////////////////////////////////////////////////
-// Function for checksum of UDP
-unsigned short udp_checksum(unsigned char *buf, unsigned nbytes){
-	unsigned long sum=0;
-	uint i;
+uint16_t udp_checksum(struct udphdr *p_udp_header, size_t len, uint32_t src_addr, uint32_t dest_addr)
+{
+	const uint16_t *buf = (const uint16_t*)p_udp_header;
+	uint16_t *ip_src = (void*)&src_addr, *ip_dst = (void*)&dest_addr;
+	uint32_t sum;
+	size_t length = len;
 
-	for(i=0; i<(nbytes & ~1U); i+=2) {
-		sum += (u_int16_t)ntohs(*((u_int16_t *)(buf + i)));
-		if(sum > 0xFFFF)
-			sum -= 0xFFFF;
+	// Calculate the sum
+	sum = 0;
+	while (len > 1){
+		sum += *buf++;
+		if (sum & 0x80000000)
+		  sum = (sum & 0xFFFF) + (sum >> 16);
+		len -= 2;
 	}
-	if(i < nbytes){
-		sum += buf[i] << 8;
-		if(sum > 0xFFFF)
-			sum -= 0xFFFF;
-	}
-	return (unsigned short)(sum);
+
+	if (len & 1)
+		// Add the padding if the packet lenght is odd
+		sum += *((uint8_t*)buf);
+
+	// Add the pseudo-header
+	sum += *(ip_src++);
+	sum += *ip_src;
+
+	sum += *(ip_dst++);
+	sum += *ip_dst;
+
+	sum += htons(IPPROTO_UDP);
+	sum += htons(length);
+
+	// Add the carries
+	while (sum >> 16)
+		sum = (sum & 0xFFFF) + (sum >> 16);
+
+	// Return the one's complement of sum
+	return (uint16_t)~sum;
 }
+
+
+
 
 
 
@@ -133,8 +156,8 @@ int main(int argc, char *argv[]){
 	}
 
 
-	printf("Hop_Count(TTL Value)\tIP Address\tResponse_time\n");
-	printf("--------------------\t----------\t-------------\n");
+	printf("Hop_Count(TTL Value)\tIP Address\t    Response_time\n");
+	printf("--------------------\t----------\t    -------------\n");
 
 
 	// Set the IP headers
@@ -142,7 +165,7 @@ int main(int argc, char *argv[]){
 	ip_header->ihl = 5;
     ip_header->version = 4;
     ip_header->tos = 0;
-    ip_header->tot_len = sizeof(buff);
+    ip_header->tot_len = htons(sizeof(buff));
     ip_header->id = htonl(id);
     ip_header->frag_off = 0;
     ip_header->protocol = IPPROTO_IP;
@@ -152,8 +175,8 @@ int main(int argc, char *argv[]){
     // Set the UDP Headers
     udp_header->source = udp_addr.sin_port;
     udp_header->dest = htons(32164);
-	udp_header->len = sizeof(buff) - sizeof(struct iphdr);
-	udp_header->check = udp_checksum((unsigned short *)buff, udp_header->len >> 1);
+	udp_header->len = htons(sizeof(buff) - sizeof(struct iphdr));
+	udp_header->check = udp_checksum(udp_header, sizeof(buff) - sizeof(struct iphdr), ip_header->saddr, ip_header->daddr);
 
 
 	while(1){
@@ -168,7 +191,7 @@ int main(int argc, char *argv[]){
 		buff[i + sizeof(struct iphdr) + sizeof(struct udphdr)] = '\0';
 
 		// Send the IP packet to the server
-		sendto(udp_fd, buff, ip_header->tot_len, 0,  (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+		sendto(udp_fd, buff, ntohs(ip_header->tot_len), 0,  (struct sockaddr *)&dest_addr, sizeof(dest_addr));
 		gettimeofday(&t1, NULL);
 		
 
@@ -194,14 +217,14 @@ int main(int argc, char *argv[]){
 				
 				// If ICMP message is of 'TIME LIMIT EXCEEDED', increase ttl and loop again
 				if(icmp_header->type == 11){
-					printf("\t%d\t\t%s\t     %dms\n",ttl, (char *)inet_ntoa(*(struct in_addr*)&recv_ip_header->saddr), (t2.tv_usec-t1.tv_usec)/1000);
+					printf("\t%d\t\t%s\t     %fms\n",ttl, (char *)inet_ntoa(*(struct in_addr*)&recv_ip_header->saddr), (t2.tv_usec-t1.tv_usec)/1000.0);
 					ttl++;
 					id++;
 					break;
 				}
 				// If ICMP message is 'DESTINATION UNREACHABLE', break from loop
 				else if(icmp_header->type == 3){
-					printf("\t%d\t\t%s\t     %dms\n",ttl, (char *)inet_ntoa(*(struct in_addr*)&recv_ip_header->saddr), (t2.tv_usec-t1.tv_usec)/1000);
+					printf("\t%d\t\t%s\t     %fms\n",ttl, (char *)inet_ntoa(*(struct in_addr*)&recv_ip_header->saddr), (t2.tv_usec-t1.tv_usec)/1000.0);
 					break;
 				}
 	        }
