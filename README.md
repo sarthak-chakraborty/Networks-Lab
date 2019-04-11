@@ -34,3 +34,7 @@ A reliable connection over an unreliable UDP socket. A socket MRP is designed wh
 
 ### ASSIGNMENT 8
 Implementation of the `traceroute` call as supported by linux. Given a domain name, find the intermediate hops(L2 and L3 switches) to reach the server and the response time. Raw sockets are used to change the TTL value in the IP header to perform the required operation.
+
+
+### ASSIGNMENT 9
+Implementation of a basic UDP echo server using signal driven I/O (Asynchronous I/O). fcntl() call is used with F_SETOWN permission and O_ASYNC flag.
